@@ -102,5 +102,3 @@
   <TextBlock Grid.Row="5" Margin="0,10,0,0" FontSize="11" Foreground="#7D94AE" TextWrapping="Wrap" Text="Possible spawn locations · availability is not tracked. Data: Questlog.gg / NCSOFT. Settings save beside the executable."/>
  </Grid>
 </Window>
-
-
