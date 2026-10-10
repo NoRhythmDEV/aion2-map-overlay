@@ -69,12 +69,22 @@ internal static class SelfCheck
         window.Close();
         var overlay = new OverlayWindow(displays[0], icons); overlay.Show(); overlay.EnsureCaptureExcluded();
         if (!overlay.CaptureExcluded) throw new Exception("Capture exclusion unavailable: " + overlay.CaptureExclusionError);
+        if (overlay.BeginScreenshotMode()) throw new Exception("Screenshot mode must require a current map frame");
+        overlay.Update(new OverlayFrame([new PlacedMarker(800, 450, "gatherable|Sapphire Gemstone")], 1600, 900, DateTime.UtcNow), 20, .9);
+        if (!overlay.BeginScreenshotMode() || !overlay.ScreenshotMode || overlay.CaptureExcluded)
+            throw new Exception("Screenshot mode did not enable capture inclusion");
+        overlay.Update(null, 20, .9);
+        if (!overlay.ScreenshotMode) throw new Exception("Screenshot frame was not frozen");
+        if (!overlay.EndScreenshotMode() || overlay.ScreenshotMode || !overlay.CaptureExcluded)
+            throw new Exception("Screenshot mode did not restore capture exclusion");
+        if (overlay.BeginScreenshotMode()) throw new Exception("Resume must discard the frozen frame");
         overlay.Close();
         File.WriteAllText(Path.Combine(output, "self-check.json"), JsonSerializer.Serialize(new {
             spatialQueries = 100, markerCount = index.Markers.Count, toggleGroups = 15,
             panTrackingMilliseconds = trackingMs, panTranslationError = delta, zoomScale = zoom.Transform.Scale / initial.Transform.Scale,
             captureMilliseconds = captureMs, captureWidth = captured.Width, captureHeight = captured.Height,
-            mapCloseHidesMarkers = true, iconCount = icons.Count, captureExclusionAccepted = true
+            mapCloseHidesMarkers = true, iconCount = icons.Count, captureExclusionAccepted = true,
+            screenshotModeTransitionsPassed = true
         }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }

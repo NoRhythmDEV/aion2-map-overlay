@@ -17,6 +17,7 @@ internal sealed class OverlayWindow : Window
     private readonly DispatcherTimer expiry;
     public bool CaptureExcluded { get; private set; }
     public int CaptureExclusionError { get; private set; }
+    public bool ScreenshotMode => surface.Frozen;
 
     public OverlayWindow(DisplayArea display, Dictionary<string, ImageSource> icons)
     {
@@ -36,7 +37,30 @@ internal sealed class OverlayWindow : Window
     }
 
     public void Update(OverlayFrame? frame, double size, double opacity)
-    { surface.Frame = frame; surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual(); }
+    {
+        if (surface.Frozen) return;
+        surface.Frame = frame; surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual();
+    }
+
+    public bool BeginScreenshotMode()
+    {
+        if (surface.Frame is null || DateTime.UtcNow - surface.Frame.CapturedAt > TimeSpan.FromMilliseconds(500)) return false;
+        if (!SetWindowDisplayAffinity(new WindowInteropHelper(this).Handle, 0)) return false;
+        CaptureExcluded = false;
+        surface.Frozen = true;
+        surface.InvalidateVisual();
+        return true;
+    }
+
+    public bool EndScreenshotMode()
+    {
+        EnsureCaptureExcluded();
+        if (!CaptureExcluded) return false;
+        surface.Frozen = false;
+        surface.Frame = null;
+        surface.InvalidateVisual();
+        return true;
+    }
 
     public void EnsureCaptureExcluded()
     {
@@ -59,10 +83,11 @@ internal sealed class OverlayWindow : Window
         public OverlayFrame? Frame { get; set; }
         public double IconSize { get; set; } = 20;
         public double IconOpacity { get; set; } = .9;
+        public bool Frozen { get; set; }
         protected override void OnRender(DrawingContext dc)
         {
             var frame = Frame;
-            if (frame is null || DateTime.UtcNow - frame.CapturedAt > TimeSpan.FromMilliseconds(300) || !IsGameForeground()) return;
+            if (frame is null || (!Frozen && (DateTime.UtcNow - frame.CapturedAt > TimeSpan.FromMilliseconds(300) || !IsGameForeground()))) return;
             var fx = ActualWidth / frame.Width; var fy = ActualHeight / frame.Height;
             dc.PushClip(new RectangleGeometry(new Rect(ActualWidth * .18, ActualHeight * .12, ActualWidth * .76, ActualHeight * .82)));
             dc.PushOpacity(IconOpacity);

@@ -54,6 +54,12 @@ without establishing permission.
 
 Verification tools are built into the executable:
 
+For screenshots with markers, open the in-game map and press **F8** to freeze the
+overlay, use **Win+Shift+S**, then press **F8** again to resume tracking. Keep the
+map still while frozen. The settings window also has a screenshot-mode button
+with a three-second countdown. Capture pauses during this mode so recognition
+does not see its own icons; normal tracking excludes the overlay from capture.
+
 ```powershell
 aion2-map-overlay.exe --verify OUTPUT_FOLDER SCREENSHOT_1 SCREENSHOT_2
 aion2-map-overlay.exe --self-check OUTPUT_FOLDER SCREENSHOT

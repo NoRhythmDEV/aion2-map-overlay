@@ -28,6 +28,9 @@
                 <Button x:Name="StopButton" Content="Stop" IsEnabled="False" Click="Stop_Click"/>
                 <Button Content="Test screenshot…" Click="Screenshot_Click"/>
             </StackPanel>
+            <Button x:Name="ScreenshotModeButton" Content="Screenshot mode (F8)" Click="ScreenshotMode_Click" Margin="0,10,0,0"
+                    ToolTip="F8 freezes the map overlay for Win+Shift+S. Press F8 again to resume. This button gives you 3 seconds to return to the map."/>
+            <TextBlock x:Name="ScreenshotModeText" Text="F8 → Win+Shift+S → F8 to resume" Foreground="#8FA8BD" FontSize="12" Margin="0,6,0,0"/>
             <TextBlock x:Name="StatusText" Text="Ready. Choose categories, start, and return to Aion 2." TextWrapping="Wrap" Foreground="#8FA8BD" Margin="0,12,0,12"/>
             <TextBlock x:Name="ResourceUsageText" Text="CPU — · RAM —" Foreground="#B9D9EC" Margin="0,0,0,12"
                        ToolTip="This app only. CPU is a percentage of total logical CPU capacity, averaged over the last second. RAM is the current working set."/>

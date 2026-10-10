@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Windows.Interop;
 using Aion2MapOverlay.Capture;
 using Aion2MapOverlay.Core.Markers;
 using Aion2MapOverlay.Data;
@@ -31,6 +32,10 @@ public partial class MainWindow : Window
     private TimeSpan previousCpuTime;
     private double previousSampleSeconds;
     private bool ready, closing;
+    private volatile bool capturePaused;
+    private readonly SemaphoreSlim captureGate = new(1, 1);
+    private ScreenshotHotkey? screenshotHotkey;
+    private bool screenshotTransition;
     private DateTime lastStatus;
     private sealed record SavedSettings(string[] Enabled, double Size, double Opacity, int Display);
 
@@ -44,11 +49,16 @@ public partial class MainWindow : Window
         resourceTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
         resourceTimer.Tick += (_, _) => UpdateResourceUsage();
         resourceTimer.Start();
-        Closed += (_, _) => { resourceTimer.Stop(); ownProcess.Dispose(); };
+        Closed += (_, _) => { resourceTimer.Stop(); ownProcess.Dispose(); screenshotHotkey?.Dispose(); };
         DisplayPicker.ItemsSource = DesktopCapture.Displays(); DisplayPicker.SelectedIndex = 0;
         for (var i = 0; i < DisplayPicker.Items.Count; i++)
             if (DisplayPicker.Items[i] is DisplayArea { X: 0, Y: 0 }) DisplayPicker.SelectedIndex = i;
-        SourceInitialized += (_, _) => OverlayWindow.Exclude(this);
+        SourceInitialized += (_, _) =>
+        {
+            OverlayWindow.Exclude(this);
+            screenshotHotkey = new ScreenshotHotkey(new WindowInteropHelper(this).Handle, () => ToggleScreenshotMode());
+            if (!screenshotHotkey.Registered) ScreenshotModeText.Text = "F8 is in use. Use the screenshot mode button.";
+        };
         Loaded += (_, _) => LoadData();
         Closing += OnClosing;
     }
@@ -115,6 +125,7 @@ public partial class MainWindow : Window
             StatusText.Text = "Windows could not exclude the overlay from capture. Live capture was not started."; return;
         }
         cancellation = new(); StartButton.IsEnabled = false; StopButton.IsEnabled = true; DisplayPicker.IsEnabled = false;
+        capturePaused = false;
         StatusText.Text = "Preparing reference terrain…";
         var token = cancellation.Token;
         worker = Task.Run(async () =>
@@ -124,31 +135,38 @@ public partial class MainWindow : Window
             using var capture = new DesktopCapture(display);
             while (!token.IsCancellationRequested)
             {
+                if (capturePaused) { await Task.Delay(50, token); continue; }
                 var watch = Stopwatch.StartNew();
-                if (!OverlayWindow.IsGameForeground())
+                await captureGate.WaitAsync(token);
+                try
                 {
-                    tracker.Reset(); await Deliver(null, "Waiting for Aion 2 to be in front.");
-                    await Task.Delay(200, token); continue;
+                    if (capturePaused) continue;
+                    if (!OverlayWindow.IsGameForeground())
+                    {
+                        tracker.Reset(); await Deliver(null, "Waiting for Aion 2 to be in front.");
+                        await Task.Delay(200, token); continue;
+                    }
+                    var capturedAt = DateTime.UtcNow;
+                    using var gray = capture.GrabGray();
+                    var aligned = tracker.Process(gray);
+                    OverlayFrame? frame = null;
+                    if (aligned is not null)
+                    {
+                        var t = aligned.Transform;
+                        var start = t.Inverse(capture.Width * .18 - 30, capture.Height * .12 - 30);
+                        var end = t.Inverse(capture.Width * .94 + 30, capture.Height * .94 + 30);
+                        var enabled = Volatile.Read(ref selected);
+                        var markers = index.Query(start.X, start.Y, end.X, end.Y).Where(m => enabled.Contains(m.GroupKey))
+                            .Select(m => { var point = t.Apply(m.ReferenceX, m.ReferenceY); return new PlacedMarker(point.X, point.Y, m.GroupKey); }).ToArray();
+                        frame = new(markers, capture.Width, capture.Height, capturedAt);
+                    }
+                    var elapsed = watch.Elapsed.TotalMilliseconds;
+                    await Deliver(frame, aligned is null ? "Verteron map not visible, or alignment lost." :
+                        $"{aligned.Method} · {aligned.Inliers} points · {elapsed:F0} ms · {frame!.Markers.Length} visible markers");
+                    var interval = aligned is null ? 200 : 50;
+                    await Task.Delay(Math.Max(1, (int)(interval - watch.Elapsed.TotalMilliseconds)), token);
                 }
-                var capturedAt = DateTime.UtcNow;
-                using var gray = capture.GrabGray();
-                var aligned = tracker.Process(gray);
-                OverlayFrame? frame = null;
-                if (aligned is not null)
-                {
-                    var t = aligned.Transform;
-                    var start = t.Inverse(capture.Width * .18 - 30, capture.Height * .12 - 30);
-                    var end = t.Inverse(capture.Width * .94 + 30, capture.Height * .94 + 30);
-                    var enabled = Volatile.Read(ref selected);
-                    var markers = index.Query(start.X, start.Y, end.X, end.Y).Where(m => enabled.Contains(m.GroupKey))
-                        .Select(m => { var point = t.Apply(m.ReferenceX, m.ReferenceY); return new PlacedMarker(point.X, point.Y, m.GroupKey); }).ToArray();
-                    frame = new(markers, capture.Width, capture.Height, capturedAt);
-                }
-                var elapsed = watch.Elapsed.TotalMilliseconds;
-                await Deliver(frame, aligned is null ? "Verteron map not visible, or alignment lost." :
-                    $"{aligned.Method} · {aligned.Inliers} points · {elapsed:F0} ms · {frame!.Markers.Length} visible markers");
-                var interval = aligned is null ? 200 : 50;
-                await Task.Delay(Math.Max(1, (int)(interval - watch.Elapsed.TotalMilliseconds)), token);
+                finally { captureGate.Release(); }
             }
         }, token);
         try { await worker; }
@@ -157,6 +175,9 @@ public partial class MainWindow : Window
         finally
         {
             overlay?.Close(); overlay = null; worker = null; cancellation?.Dispose(); cancellation = null;
+            capturePaused = false;
+            ScreenshotModeText.Text = "F8 → Win+Shift+S → F8 to resume";
+            ScreenshotModeButton.Content = "Screenshot mode (F8)";
             StartButton.IsEnabled = true; StopButton.IsEnabled = false; DisplayPicker.IsEnabled = true;
         }
     }
@@ -168,6 +189,64 @@ public partial class MainWindow : Window
             overlay?.Update(frame, IconSize.Value, IconOpacity.Value);
             if (DateTime.UtcNow - lastStatus > TimeSpan.FromMilliseconds(250)) { StatusText.Text = status; lastStatus = DateTime.UtcNow; }
         }, DispatcherPriority.Render);
+    }
+
+    private async void ToggleScreenshotMode()
+    {
+        if (screenshotTransition || overlay is null || cancellation?.IsCancellationRequested != false) return;
+        screenshotTransition = true;
+        capturePaused = true;
+        try
+        {
+            // Wait for the in-flight frame to finish before making icons capturable.
+            // Normal capture cannot run again until exclusion has been restored.
+            await captureGate.WaitAsync();
+            try
+            {
+                if (overlay is null) { capturePaused = false; return; }
+                if (overlay.ScreenshotMode)
+                {
+                    if (!overlay.EndScreenshotMode())
+                    {
+                        cancellation?.Cancel(); overlay.Hide();
+                        ScreenshotModeText.Text = "Could not restore capture exclusion. Overlay stopped."; return;
+                    }
+                    capturePaused = false;
+                    ScreenshotModeButton.Content = "Screenshot mode (F8)";
+                    ScreenshotModeText.Text = "Tracking resumed. F8 → Win+Shift+S → F8.";
+                }
+                else if (OverlayWindow.IsGameForeground() && overlay.BeginScreenshotMode())
+                {
+                    ScreenshotModeButton.Content = "Resume tracking (F8)";
+                    ScreenshotModeText.Text = "Screenshot mode: use Win+Shift+S, then F8 to resume.";
+                }
+                else
+                {
+                    capturePaused = false;
+                    ScreenshotModeText.Text = "Open the Verteron map and wait for markers, then press F8.";
+                }
+            }
+            finally { captureGate.Release(); }
+        }
+        finally { screenshotTransition = false; }
+    }
+
+    private async void ScreenshotMode_Click(object sender, RoutedEventArgs e)
+    {
+        if (overlay is null) { ScreenshotModeText.Text = "Start the overlay first."; return; }
+        if (overlay.ScreenshotMode) { ToggleScreenshotMode(); return; }
+        ScreenshotModeButton.IsEnabled = false;
+        try
+        {
+            for (var remaining = 3; remaining > 0; remaining--)
+            {
+                ScreenshotModeText.Text = $"Return to Aion 2's open map: {remaining}…";
+                await Task.Delay(1000);
+                if (closing || overlay is null) return;
+            }
+            ToggleScreenshotMode();
+        }
+        finally { ScreenshotModeButton.IsEnabled = true; }
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e) { cancellation?.Cancel(); overlay?.Update(null, 20, 1); StatusText.Text = "Stopped."; }

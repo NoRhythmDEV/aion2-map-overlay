@@ -15,6 +15,10 @@ Supports all 13 gatherable and 2 collectible groups present in the Verteron data
 Icon size, opacity, and selected groups are saved in settings.local.json.
 The app window shows its own CPU use and RAM working set, refreshed each second.
 CPU is normalized across all logical processors, like Task Manager's overall scale.
+To screenshot the icons: with markers visible, press F8, use Win+Shift+S, then
+press F8 again to resume tracking. Screenshot mode freezes markers and pauses
+screen analysis. Avoid moving the map while it is frozen. The settings button
+offers a 3-second countdown if F8 is already assigned to another application.
 Hidden Cube uses a replacement cube drawing because its source icon was unavailable.
 Test screenshot creates local annotated Sapphire previews and alignment reports.
 
