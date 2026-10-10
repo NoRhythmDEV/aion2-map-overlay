@@ -8,7 +8,7 @@ using Aion2MapOverlay.Capture;
 
 namespace Aion2MapOverlay.App;
 
-internal sealed record PlacedMarker(double X, double Y, string Key);
+internal sealed record PlacedMarker(double X, double Y, string Key, string? Id = null);
 internal sealed record OverlayFrame(PlacedMarker[] Markers, int Width, int Height, DateTime CapturedAt);
 
 internal sealed class OverlayWindow : Window
@@ -32,14 +32,17 @@ internal sealed class OverlayWindow : Window
             SetWindowPos(handle, -1, display.X, display.Y, display.Width, display.Height, 0x0010);
         };
         Loaded += (_, _) => { SetWindowPos(new WindowInteropHelper(this).Handle, -1, display.X, display.Y, display.Width, display.Height, 0x0010); EnsureCaptureExcluded(); };
-        expiry = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Render, (_, _) => surface.InvalidateVisual(), Dispatcher);
+        expiry = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) =>
+        {
+            if (surface.Frame is not null && !surface.Frozen) surface.InvalidateVisual();
+        }, Dispatcher);
         Closed += (_, _) => expiry.Stop();
     }
 
     public void Update(OverlayFrame? frame, double size, double opacity)
     {
         if (surface.Frozen) return;
-        surface.Frame = frame; surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual();
+        surface.SetFrame(frame); surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual();
     }
 
     public bool BeginScreenshotMode()
@@ -48,6 +51,7 @@ internal sealed class OverlayWindow : Window
         if (!SetWindowDisplayAffinity(new WindowInteropHelper(this).Handle, 0)) return false;
         CaptureExcluded = false;
         surface.Frozen = true;
+        surface.FinishMotion();
         surface.InvalidateVisual();
         return true;
     }
@@ -57,7 +61,7 @@ internal sealed class OverlayWindow : Window
         EnsureCaptureExcluded();
         if (!CaptureExcluded) return false;
         surface.Frozen = false;
-        surface.Frame = null;
+        surface.SetFrame(null);
         surface.InvalidateVisual();
         return true;
     }
@@ -84,16 +88,25 @@ internal sealed class OverlayWindow : Window
         public double IconSize { get; set; } = 20;
         public double IconOpacity { get; set; } = .9;
         public bool Frozen { get; set; }
+        private readonly MarkerMotion motion = new();
+        public void SetFrame(OverlayFrame? frame)
+        {
+            motion.SetFrame(frame, System.Diagnostics.Stopwatch.GetTimestamp());
+            Frame = frame;
+        }
+        public void FinishMotion() => motion.Finish();
         protected override void OnRender(DrawingContext dc)
         {
             var frame = Frame;
             if (frame is null || (!Frozen && (DateTime.UtcNow - frame.CapturedAt > TimeSpan.FromMilliseconds(300) || !IsGameForeground()))) return;
             var fx = ActualWidth / frame.Width; var fy = ActualHeight / frame.Height;
+            var now = System.Diagnostics.Stopwatch.GetTimestamp();
             dc.PushClip(new RectangleGeometry(new Rect(ActualWidth * .18, ActualHeight * .12, ActualWidth * .76, ActualHeight * .82)));
             dc.PushOpacity(IconOpacity);
             foreach (var marker in frame.Markers)
             {
-                var x = marker.X * fx; var y = marker.Y * fy;
+                var position = motion.Position(marker, now);
+                var x = position.X * fx; var y = position.Y * fy;
                 dc.DrawEllipse(backdrop, null, new Point(x, y), IconSize / 2 + 1, IconSize / 2 + 1);
                 if (icons.TryGetValue(marker.Key, out var image)) dc.DrawImage(image, new Rect(x - IconSize / 2, y - IconSize / 2, IconSize, IconSize));
                 else dc.DrawEllipse(Brushes.Cyan, null, new Point(x, y), IconSize / 3, IconSize / 3);

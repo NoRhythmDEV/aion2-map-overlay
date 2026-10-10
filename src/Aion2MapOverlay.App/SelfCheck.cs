@@ -22,6 +22,22 @@ internal static class SelfCheck
         if (index.Markers.Count != 4733 || index.Markers.Count(m => m.Name == "Sapphire Gemstone") != 192)
             throw new InvalidDataException("Unexpected Verteron marker coverage");
         var random = new Random(42);
+        var motion = new MarkerMotion();
+        var firstMarker = new PlacedMarker(100, 100, "test", "node");
+        var movedMarker = firstMarker with { X = 120 };
+        var stamp = Stopwatch.GetTimestamp();
+        motion.SetFrame(new([firstMarker], 1600, 900, DateTime.UtcNow), stamp);
+        motion.SetFrame(new([movedMarker], 1600, 900, DateTime.UtcNow), stamp);
+        var halfway = motion.Position(movedMarker, stamp + (long)(Stopwatch.Frequency * .012));
+        if (Math.Abs(halfway.X - 110) > .01) throw new Exception("Marker interpolation midpoint failed");
+        motion.Finish();
+        if (motion.Position(movedMarker, stamp).X != 120) throw new Exception("Screenshot mode must finish motion");
+        var jumpedMarker = movedMarker with { X = 500 };
+        motion.SetFrame(new([jumpedMarker], 1600, 900, DateTime.UtcNow), stamp);
+        if (motion.Position(jumpedMarker, stamp).X != 500) throw new Exception("Large movements must snap");
+        motion.SetFrame(null, stamp);
+        motion.SetFrame(new([firstMarker], 1600, 900, DateTime.UtcNow), stamp);
+        if (motion.Position(firstMarker, stamp).X != 100) throw new Exception("Lost alignment must reset smoothing");
         for (var i = 0; i < 100; i++)
         {
             var left = random.NextDouble() * 2048; var top = random.NextDouble() * 2048;
@@ -62,10 +78,28 @@ internal static class SelfCheck
         System.Windows.Documents.TextElement.SetForeground(border, window.Foreground);
         System.Windows.Documents.TextElement.SetFontFamily(border, window.FontFamily);
         System.Windows.Documents.TextElement.SetFontSize(border, window.FontSize);
-        border.Measure(new System.Windows.Size(500, 780)); border.Arrange(new System.Windows.Rect(0, 0, 500, 780)); border.UpdateLayout();
-        var bitmap = new RenderTargetBitmap(500, 780, 96, 96, PixelFormats.Pbgra32); bitmap.Render(border);
+        border.Measure(new System.Windows.Size(760, 900)); border.Arrange(new System.Windows.Rect(0, 0, 760, 900)); border.UpdateLayout();
+        var bitmap = new RenderTargetBitmap(760, 900, 96, 96, PixelFormats.Pbgra32); bitmap.Render(border);
+        var tiles = Descendants<System.Windows.Controls.Primitives.ToggleButton>(border).Where(t => t.DataContext is MarkerGroup).ToArray();
+        if (tiles.Length != 15) throw new Exception("Resource grid must contain all 15 toggle tiles");
+        var tile = tiles[0];
+        var groupModel = (MarkerGroup)tile.DataContext;
+        var wasEnabled = groupModel.Enabled;
+        var peer = new System.Windows.Automation.Peers.ToggleButtonAutomationPeer(tile);
+        ((System.Windows.Automation.Provider.IToggleProvider)peer).Toggle();
+        if (groupModel.Enabled == wasEnabled) throw new Exception("Resource tile did not toggle its category");
+        ((System.Windows.Automation.Provider.IToggleProvider)peer).Toggle();
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var stream = File.Create(Path.Combine(output, "settings-window.png"))) encoder.Save(stream);
+        border.Measure(new System.Windows.Size(1000, 900)); border.Arrange(new System.Windows.Rect(0, 0, 1000, 900)); border.UpdateLayout();
+        if (Descendants<System.Windows.Controls.Primitives.UniformGrid>(border).Single().Columns != 4)
+            throw new Exception("Wide resource grid must switch to four columns");
+        groupModel.Enabled = true;
+        border.UpdateLayout();
+        var wideBitmap = new RenderTargetBitmap(1000, 900, 96, 96, PixelFormats.Pbgra32); wideBitmap.Render(border);
+        var wideEncoder = new PngBitmapEncoder(); wideEncoder.Frames.Add(BitmapFrame.Create(wideBitmap));
+        using (var stream = File.Create(Path.Combine(output, "settings-window-wide.png"))) wideEncoder.Save(stream);
+        groupModel.Enabled = wasEnabled;
         window.Close();
         var overlay = new OverlayWindow(displays[0], icons); overlay.Show(); overlay.EnsureCaptureExcluded();
         if (!overlay.CaptureExcluded) throw new Exception("Capture exclusion unavailable: " + overlay.CaptureExclusionError);
@@ -84,7 +118,18 @@ internal static class SelfCheck
             panTrackingMilliseconds = trackingMs, panTranslationError = delta, zoomScale = zoom.Transform.Scale / initial.Transform.Scale,
             captureMilliseconds = captureMs, captureWidth = captured.Width, captureHeight = captured.Height,
             mapCloseHidesMarkers = true, iconCount = icons.Count, captureExclusionAccepted = true,
-            screenshotModeTransitionsPassed = true
+            screenshotModeTransitionsPassed = true, markerInterpolationPassed = true, resourceTileTogglePassed = true
         }, new JsonSerializerOptions { WriteIndented = true }));
     }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) yield return match;
+            foreach (var descendant in Descendants<T>(child)) yield return descendant;
+        }
+    }
 }
+

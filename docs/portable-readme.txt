@@ -12,6 +12,10 @@ startup on a clean Windows installation has not yet been tested.
 5. Return to this window to change filters or Stop. Closing it stops capture.
 
 Supports all 13 gatherable and 2 collectible groups present in the Verteron data.
+Click any resource tile to toggle it; enabled tiles have a cyan border and check.
+The grid uses three columns, or four when the window is widened.
+Tracking targets 30 updates per second, with short visual transitions between
+confirmed positions. Large movements snap and lost alignment still hides icons.
 Icon size, opacity, and selected groups are saved in settings.local.json.
 The app window shows its own CPU use and RAM working set, refreshed each second.
 CPU is normalized across all logical processors, like Task Manager's overall scale.

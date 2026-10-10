@@ -12,7 +12,9 @@ tracking, a spatial index, click-through drawing, map-open detection, and saved 
 Uses 14 downloaded icons and a replacement drawing for Hidden Cube.
 
 The current capture backend uses downsampled GDI desktop snapshots, bounded to one
-frame at a time, targeting 20 updates/second while tracking. It does not record video.
+frame at a time, targeting 30 updates/second while tracking. Marker drawing uses
+a 24 ms transition between confirmed positions, with immediate resets on lost
+alignment and large movements. It does not record video.
 GPU-backed capture remains a planned improvement. It pauses outside an Aion window
 and suppresses stale or unregistered markers. The first preview is tuned to the
 supplied English Verteron screenshots at 16:9; rapid live dragging and other display
@@ -20,6 +22,10 @@ layouts still require user testing. Collected-state editing is not implemented y
 
 Map data, reference artwork, and supplied screenshots are local and excluded from
 Git. The public repository does not include a ready-to-run dataset or public binary.
+
+Settings use a three-column resource grid, switching to four columns in a wider
+window. Click a resource tile to toggle it; enabled tiles have a cyan border and
+check mark. Search and bulk category controls work with the same saved filters.
 
 ## Structure
 

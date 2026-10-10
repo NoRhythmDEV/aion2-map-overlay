@@ -111,6 +111,7 @@ public partial class MainWindow : Window
     private void SelectionChanged()
     {
         Volatile.Write(ref selected, groups.Where(g => g.Enabled).Select(g => g.Key).ToHashSet());
+        SelectionText.Text = $"{groups.Count(g => g.Enabled)} / {groups.Count} selected";
         overlay?.Update(null, IconSize.Value, IconOpacity.Value);
         if (ready) { saveTimer.Stop(); saveTimer.Start(); }
     }
@@ -157,13 +158,13 @@ public partial class MainWindow : Window
                         var end = t.Inverse(capture.Width * .94 + 30, capture.Height * .94 + 30);
                         var enabled = Volatile.Read(ref selected);
                         var markers = index.Query(start.X, start.Y, end.X, end.Y).Where(m => enabled.Contains(m.GroupKey))
-                            .Select(m => { var point = t.Apply(m.ReferenceX, m.ReferenceY); return new PlacedMarker(point.X, point.Y, m.GroupKey); }).ToArray();
+                            .Select(m => { var point = t.Apply(m.ReferenceX, m.ReferenceY); return new PlacedMarker(point.X, point.Y, m.GroupKey, m.Id); }).ToArray();
                         frame = new(markers, capture.Width, capture.Height, capturedAt);
                     }
                     var elapsed = watch.Elapsed.TotalMilliseconds;
                     await Deliver(frame, aligned is null ? "Verteron map not visible, or alignment lost." :
                         $"{aligned.Method} · {aligned.Inliers} points · {elapsed:F0} ms · {frame!.Markers.Length} visible markers");
-                    var interval = aligned is null ? 200 : 50;
+                    var interval = aligned is null ? 200 : 33;
                     await Task.Delay(Math.Max(1, (int)(interval - watch.Elapsed.TotalMilliseconds)), token);
                 }
                 finally { captureGate.Release(); }
@@ -255,6 +256,17 @@ public partial class MainWindow : Window
     {
         if (GroupsList?.ItemsSource is null) return;
         CollectionViewSource.GetDefaultView(GroupsList.ItemsSource).Filter = item => ((MarkerGroup)item).Name.Contains(SearchBox.Text, StringComparison.OrdinalIgnoreCase);
+    }
+    private void GroupsList_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        SetGridColumns(GroupsList, GroupsList.ActualWidth >= 860 ? 4 : 3);
+    }
+
+    private static void SetGridColumns(DependencyObject parent, int columns)
+    {
+        if (parent is System.Windows.Controls.Primitives.UniformGrid grid) { grid.Columns = columns; return; }
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            SetGridColumns(VisualTreeHelper.GetChild(parent, i), columns);
     }
     private void SetGroups(Func<MarkerGroup, bool> predicate) { foreach (var group in groups) group.Enabled = predicate(group); }
     private void All_Click(object sender, RoutedEventArgs e) => SetGroups(_ => true);
