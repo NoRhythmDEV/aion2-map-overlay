@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+artifacts/
+captures/
+settings.local.json
+data/sources/*
+!data/sources/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]

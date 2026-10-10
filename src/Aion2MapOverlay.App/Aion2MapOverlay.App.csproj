@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aion2MapOverlay.Core\Aion2MapOverlay.Core.csproj" />
+    <ProjectReference Include="..\Aion2MapOverlay.Capture\Aion2MapOverlay.Capture.csproj" />
+    <ProjectReference Include="..\Aion2MapOverlay.Vision\Aion2MapOverlay.Vision.csproj" />
+    <ProjectReference Include="..\Aion2MapOverlay.Data\Aion2MapOverlay.Data.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+</Project>
