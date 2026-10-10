@@ -30,3 +30,25 @@ Verify alignment against held-out screenshots at different zoom levels and map p
 6. Publish a self-contained portable folder and test on a Windows machine without the SDK.
 
 The first milestone covers Verteron. Expand to other regions only after registration and coordinate conversion work reliably. Player-arrow detection is optional for this overlay: terrain alignment already places resource markers correctly.
+
+## Optional minimap direction prototype
+
+The gameplay indicator uses separate native-resolution screen crops for the two
+supplied minimap presets. A 4096px reference, SIFT features, and robust similarity
+registration locate the crop center on the existing 2048px marker reference.
+Reject weak inlier coverage, high residuals, or rotation beyond 5 degrees. The
+player is assumed to stay centered in the minimap. Runtime preset selection is
+required: a partial crop of the larger minimap can still match terrain correctly
+while giving the wrong player center if Default is selected.
+
+Query enabled gatherables and retain a previous target while it remains within
+10% of the nearest distance to reduce target flicker. Render a north-up ring on
+the minimap with a direction pointer and node name. This is straight-line guidance
+to a possible spawn; gathering detection, node skipping, obstacle routing, and
+camera-relative directions around the main character are not implemented.
+
+Guidance is opt-in and saved locally. Its analysis runs at up to 10 Hz only while
+Aion is foreground and the full Verteron map is closed. Disable the toggle to
+stop minimap analysis and release the extra matcher on the worker's next active
+iteration. Confidence loss or stale frames hide the ring within 500ms. Existing
+capture exclusion covers the ring, so it cannot feed back into screen matching.

@@ -11,12 +11,13 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        if (e.Args.Length >= 3 && e.Args[0] is "--verify" or "--self-check")
+        if (e.Args.Length >= 3 && e.Args[0] is "--verify" or "--self-check" or "--check-minimap")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             try
             {
-                if (e.Args[0] == "--self-check") SelfCheck.Run(e.Args[2], e.Args[1]);
+                if (e.Args[0] == "--check-minimap") MinimapCheck.Run(e.Args.Skip(2).ToArray(), e.Args[1]);
+                else if (e.Args[0] == "--self-check") SelfCheck.Run(e.Args[2], e.Args[1]);
                 else Diagnostics.Run(e.Args.Skip(2).ToArray(), e.Args[1]);
             }
             catch (Exception error)

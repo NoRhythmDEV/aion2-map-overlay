@@ -34,16 +34,18 @@ internal sealed class OverlayWindow : Window
         Loaded += (_, _) => { SetWindowPos(new WindowInteropHelper(this).Handle, -1, display.X, display.Y, display.Width, display.Height, 0x0010); EnsureCaptureExcluded(); };
         expiry = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) =>
         {
-            if (surface.Frame is not null && !surface.Frozen) surface.InvalidateVisual();
+            if ((surface.Frame is not null || surface.Guidance is not null) && !surface.Frozen) surface.InvalidateVisual();
         }, Dispatcher);
         Closed += (_, _) => expiry.Stop();
     }
 
-    public void Update(OverlayFrame? frame, double size, double opacity)
+    public void Update(OverlayFrame? frame, double size, double opacity, GuidanceFrame? guidance = null)
     {
         if (surface.Frozen) return;
-        surface.SetFrame(frame); surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual();
+        surface.SetFrame(frame); surface.Guidance = guidance; surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual();
     }
+
+    public void ClearGuidance() { surface.Guidance = null; surface.InvalidateVisual(); }
 
     public bool BeginScreenshotMode()
     {
@@ -88,6 +90,7 @@ internal sealed class OverlayWindow : Window
         public double IconSize { get; set; } = 20;
         public double IconOpacity { get; set; } = .9;
         public bool Frozen { get; set; }
+        public GuidanceFrame? Guidance { get; set; }
         private readonly MarkerMotion motion = new();
         public void SetFrame(OverlayFrame? frame)
         {
@@ -97,6 +100,9 @@ internal sealed class OverlayWindow : Window
         public void FinishMotion() => motion.Finish();
         protected override void OnRender(DrawingContext dc)
         {
+            if (!Frozen && !IsGameForeground()) return;
+            if (!Frozen && Guidance is { } guide && DateTime.UtcNow - guide.CapturedAt < TimeSpan.FromMilliseconds(500))
+                DrawGuide(dc, guide);
             var frame = Frame;
             if (frame is null || (!Frozen && (DateTime.UtcNow - frame.CapturedAt > TimeSpan.FromMilliseconds(300) || !IsGameForeground()))) return;
             var fx = ActualWidth / frame.Width; var fy = ActualHeight / frame.Height;
@@ -112,6 +118,35 @@ internal sealed class OverlayWindow : Window
                 else dc.DrawEllipse(Brushes.Cyan, null, new Point(x, y), IconSize / 3, IconSize / 3);
             }
             dc.Pop(); dc.Pop();
+        }
+
+        private void DrawGuide(DrawingContext dc, GuidanceFrame guide)
+        {
+            var center = new Point(guide.CenterX * ActualWidth, guide.CenterY * ActualHeight);
+            var radius = guide.Radius * ActualWidth;
+            var accent = Brushes.DeepSkyBlue;
+            dc.DrawEllipse(null, new Pen(backdrop, 4), center, radius, radius);
+            dc.DrawEllipse(null, new Pen(accent, 1.5), center, radius, radius);
+            var direction = new Vector(Math.Cos(guide.Angle), Math.Sin(guide.Angle));
+            var side = new Vector(-direction.Y, direction.X);
+            var tip = center + direction * radius;
+            var triangle = new StreamGeometry();
+            using (var context = triangle.Open())
+            {
+                context.BeginFigure(tip + direction * 7, true, true);
+                context.LineTo(tip - direction * 9 + side * 7, true, false);
+                context.LineTo(tip - direction * 9 - side * 7, true, false);
+            }
+            triangle.Freeze(); dc.DrawGeometry(accent, new Pen(Brushes.Black, 1), triangle);
+            var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+            var label = new FormattedText(guide.Name, System.Globalization.CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight, new Typeface("Segoe UI"), 12, Brushes.White, dpi);
+            var box = new Rect(center.X - label.Width / 2 - 8, center.Y + radius + 8, label.Width + 16, 24);
+            dc.DrawRoundedRectangle(backdrop, null, box, 5, 5);
+            dc.DrawText(label, new Point(box.X + 8, box.Y + 3));
+            var north = new FormattedText("N", System.Globalization.CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, new Typeface("Segoe UI"), 10, accent, dpi);
+            dc.DrawText(north, new Point(center.X - north.Width / 2, center.Y - radius - 15));
         }
     }
 

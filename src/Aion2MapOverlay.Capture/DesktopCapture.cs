@@ -26,9 +26,9 @@ public sealed class DesktopCapture : IDisposable
         return displays;
     }
 
-    public DesktopCapture(DisplayArea display)
+    public DesktopCapture(DisplayArea display, int maximumWidth = 1600)
     {
-        Display = display; Width = Math.Min(1600, display.Width);
+        Display = display; Width = Math.Min(maximumWidth, display.Width);
         Height = (int)Math.Round(display.Height * (double)Width / display.Width);
         screen = GetDC(0); memory = CreateCompatibleDC(screen);
         var info = new BitmapInfo { Size = 40, Width = Width, Height = -Height, Planes = 1, BitCount = 32 };

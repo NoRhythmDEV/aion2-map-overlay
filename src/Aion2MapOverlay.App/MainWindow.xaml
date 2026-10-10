@@ -61,9 +61,19 @@
    </StackPanel>
   </Border>
   <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,18">
-   <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="24"/><ColumnDefinition/></Grid.ColumnDefinitions>
+   <Grid><Grid.RowDefinitions><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="24"/><ColumnDefinition/></Grid.ColumnDefinitions>
     <StackPanel><TextBlock Text="Icon size"/><Slider x:Name="IconSize" Minimum="10" Maximum="36" Value="20" TickFrequency="2" ValueChanged="Appearance_Changed"/></StackPanel>
     <StackPanel Grid.Column="2"><TextBlock Text="Opacity"/><Slider x:Name="IconOpacity" Minimum="0.25" Maximum="1" Value="0.9" ValueChanged="Appearance_Changed"/></StackPanel>
+    <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,16,0,0">
+     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="200"/></Grid.ColumnDefinitions>
+     <StackPanel VerticalAlignment="Center">
+      <CheckBox x:Name="NavigationToggle" Content="Nearest resource direction" Foreground="#E7EDF5" Checked="Navigation_Changed" Unchecked="Navigation_Changed"/>
+      <TextBlock Text="Ring on the minimap while the full map is closed" FontSize="11" Foreground="#87A1BD" Margin="20,5,0,0"/>
+     </StackPanel>
+     <ComboBox x:Name="MinimapPresetPicker" Grid.Column="1" SelectedIndex="1" SelectionChanged="MinimapPreset_Changed" ToolTip="Choose the minimap layout used in Aion 2">
+      <ComboBoxItem Content="Default minimap"/><ComboBoxItem Content="Larger minimap"/>
+     </ComboBox>
+    </Grid>
    </Grid>
   </Border>
   <StackPanel Grid.Row="3">

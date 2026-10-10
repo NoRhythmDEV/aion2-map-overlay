@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Aion2MapOverlay.Capture;
 using Aion2MapOverlay.Core.Geometry;
+using Aion2MapOverlay.Core.Markers;
 using Aion2MapOverlay.Data;
 using Aion2MapOverlay.Vision;
 using OpenCvSharp;
@@ -22,6 +23,19 @@ internal static class SelfCheck
         if (index.Markers.Count != 4733 || index.Markers.Count(m => m.Name == "Sapphire Gemstone") != 192)
             throw new InvalidDataException("Unexpected Verteron marker coverage");
         var random = new Random(42);
+        var nodeA = new MapMarker("a", "Sapphire Gemstone", "gatherable", "test", 110, 100, null);
+        var nodeB = nodeA with { Id = "b", ReferenceX = 110.5 };
+        var collectible = nodeA with { Id = "c", Type = "collectable", ReferenceX = 100 };
+        var fix = new MinimapFix(100, 100, 0, 20, .2);
+        var selectedNodes = new HashSet<string> { nodeA.GroupKey, collectible.GroupKey };
+        if (Navigation.Nearest([nodeA, nodeB, collectible], selectedNodes, fix)?.Id != "a") throw new Exception("Navigation must choose the nearest selected gatherable");
+        if (Navigation.Nearest([nodeA, nodeB], selectedNodes, fix, nodeB)?.Id != "b") throw new Exception("Nearly tied navigation targets must remain stable");
+        if (Navigation.Nearest([nodeA], [], fix) is not null) throw new Exception("Disabled resources must not receive guidance");
+        var otherDisplay = new DisplayArea(-2560, 40, 2560, 1440);
+        var minimapArea = Navigation.MinimapArea(otherDisplay, true);
+        var guide = Navigation.Guide(nodeA, fix, otherDisplay, minimapArea, true, DateTime.UtcNow);
+        if (Math.Abs(guide.Angle) > .0001 || guide.CenterX < .9 || guide.CenterX > .95 || guide.CenterY < .24 || guide.CenterY > .27)
+            throw new Exception("Navigation direction or multi-monitor coordinates incorrect");
         var motion = new MarkerMotion();
         var firstMarker = new PlacedMarker(100, 100, "test", "node");
         var movedMarker = firstMarker with { X = 120 };
@@ -118,7 +132,8 @@ internal static class SelfCheck
             panTrackingMilliseconds = trackingMs, panTranslationError = delta, zoomScale = zoom.Transform.Scale / initial.Transform.Scale,
             captureMilliseconds = captureMs, captureWidth = captured.Width, captureHeight = captured.Height,
             mapCloseHidesMarkers = true, iconCount = icons.Count, captureExclusionAccepted = true,
-            screenshotModeTransitionsPassed = true, markerInterpolationPassed = true, resourceTileTogglePassed = true
+            screenshotModeTransitionsPassed = true, markerInterpolationPassed = true, resourceTileTogglePassed = true,
+            navigationSelectionAndGeometryPassed = true
         }, new JsonSerializerOptions { WriteIndented = true }));
     }
 

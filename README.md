@@ -27,6 +27,15 @@ Settings use a three-column resource grid, switching to four columns in a wider
 window. Click a resource tile to toggle it; enabled tiles have a cyan border and
 check mark. Search and bulk category controls work with the same saved filters.
 
+An optional **Nearest resource direction** toggle adds a north-up ring around the
+player's minimap position while the full map is closed. It targets enabled
+gatherables, using native-resolution minimap terrain matches at up to 10 Hz.
+Choose Default or Larger minimap to match the in-game preset; the larger preset
+is initially selected and guidance starts disabled. The player is assumed to be
+at the minimap center. Uncertain matches hide the indicator. This first version
+has been checked against the two supplied screenshots; live movement and other
+UI layouts still need testing. It does not detect gathering or live availability.
+
 ## Structure
 
 ```text
@@ -69,6 +78,7 @@ does not see its own icons; normal tracking excludes the overlay from capture.
 ```powershell
 aion2-map-overlay.exe --verify OUTPUT_FOLDER SCREENSHOT_1 SCREENSHOT_2
 aion2-map-overlay.exe --self-check OUTPUT_FOLDER SCREENSHOT
+aion2-map-overlay.exe --check-minimap OUTPUT_FOLDER GAMEPLAY_SCREENSHOT_1 GAMEPLAY_SCREENSHOT_2
 ```
 
 The first command prepares the local map-title template from the first supplied
