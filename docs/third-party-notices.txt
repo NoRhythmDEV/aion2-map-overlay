@@ -1,0 +1,25 @@
+Aion 2 Map Overlay — third-party components
+
+OpenCvSharp 4.11.0.20250507
+Copyright (c) 2008-2025 shimat
+https://github.com/shimat/opencvsharp
+Apache License 2.0; see licenses/OpenCvSharp-Apache-2.0.txt.
+
+OpenCV 4.11
+Copyright OpenCV contributors
+https://github.com/opencv/opencv
+Apache License 2.0; see licenses/OpenCV-Apache-2.0.txt.
+Native builds may include additional third-party components; see upstream notices.
+
+.NET 8 runtime and WPF
+Copyright .NET Foundation and Contributors
+https://github.com/dotnet/runtime
+https://github.com/dotnet/wpf
+MIT and third-party licences; see the runtime/WPF licence and notice files.
+
+Marker data, reference map, and resource icon references: Questlog.gg.
+Aion 2 and game assets: NCSOFT and respective owners.
+Public redistribution permission for Questlog data/assets has not been established.
+This package is a local testing copy, not a public data release.
+
+The Hidden Cube glyph is drawn by this application rather than copied from Questlog.
