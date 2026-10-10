@@ -25,6 +25,11 @@ public partial class MainWindow : Window
     private CancellationTokenSource? cancellation;
     private Task? worker;
     private readonly DispatcherTimer saveTimer;
+    private readonly DispatcherTimer resourceTimer;
+    private readonly Process ownProcess = Process.GetCurrentProcess();
+    private readonly Stopwatch resourceClock = Stopwatch.StartNew();
+    private TimeSpan previousCpuTime;
+    private double previousSampleSeconds;
     private bool ready, closing;
     private DateTime lastStatus;
     private sealed record SavedSettings(string[] Enabled, double Size, double Opacity, int Display);
@@ -34,6 +39,12 @@ public partial class MainWindow : Window
         InitializeComponent();
         saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); SaveSettings(); };
+        previousCpuTime = ownProcess.TotalProcessorTime;
+        previousSampleSeconds = resourceClock.Elapsed.TotalSeconds;
+        resourceTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+        resourceTimer.Tick += (_, _) => UpdateResourceUsage();
+        resourceTimer.Start();
+        Closed += (_, _) => { resourceTimer.Stop(); ownProcess.Dispose(); };
         DisplayPicker.ItemsSource = DesktopCapture.Displays(); DisplayPicker.SelectedIndex = 0;
         for (var i = 0; i < DisplayPicker.Items.Count; i++)
             if (DisplayPicker.Items[i] is DisplayArea { X: 0, Y: 0 }) DisplayPicker.SelectedIndex = i;
@@ -68,11 +79,24 @@ public partial class MainWindow : Window
             }
             GroupsList.ItemsSource = groups; ready = true; SelectionChanged();
             StatusText.Text = $"{index.Markers.Count:N0} locations · {groups.Count} toggleable categories. Ready.";
+            UpdateResourceUsage();
         }
         catch (Exception error) { StartButton.IsEnabled = false; StatusText.Text = "Data could not be loaded: " + error.Message; }
     }
 
     internal void PrepareForCheck() => LoadData();
+
+    private void UpdateResourceUsage()
+    {
+        ownProcess.Refresh();
+        var seconds = resourceClock.Elapsed.TotalSeconds;
+        var cpuTime = ownProcess.TotalProcessorTime;
+        var elapsed = seconds - previousSampleSeconds;
+        var cpu = elapsed > 0 ? (cpuTime - previousCpuTime).TotalSeconds / elapsed / Environment.ProcessorCount * 100 : 0;
+        ResourceUsageText.Text = $"App CPU {Math.Clamp(cpu, 0, 100):F1}% · RAM {ownProcess.WorkingSet64 / (1024.0 * 1024):F0} MiB";
+        previousCpuTime = cpuTime;
+        previousSampleSeconds = seconds;
+    }
 
     private void SelectionChanged()
     {

@@ -13,6 +13,8 @@ startup on a clean Windows installation has not yet been tested.
 
 Supports all 13 gatherable and 2 collectible groups present in the Verteron data.
 Icon size, opacity, and selected groups are saved in settings.local.json.
+The app window shows its own CPU use and RAM working set, refreshed each second.
+CPU is normalized across all logical processors, like Task Manager's overall scale.
 Hidden Cube uses a replacement cube drawing because its source icon was unavailable.
 Test screenshot creates local annotated Sapphire previews and alignment reports.
 

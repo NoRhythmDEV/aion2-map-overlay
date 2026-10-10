@@ -29,6 +29,8 @@
                 <Button Content="Test screenshot…" Click="Screenshot_Click"/>
             </StackPanel>
             <TextBlock x:Name="StatusText" Text="Ready. Choose categories, start, and return to Aion 2." TextWrapping="Wrap" Foreground="#8FA8BD" Margin="0,12,0,12"/>
+            <TextBlock x:Name="ResourceUsageText" Text="CPU — · RAM —" Foreground="#B9D9EC" Margin="0,0,0,12"
+                       ToolTip="This app only. CPU is a percentage of total logical CPU capacity, averaged over the last second. RAM is the current working set."/>
         </StackPanel>
         <StackPanel Grid.Row="2">
             <TextBlock Text="Icon size"/>
