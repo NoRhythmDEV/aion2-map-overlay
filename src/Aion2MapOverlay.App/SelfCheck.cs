@@ -34,8 +34,13 @@ internal static class SelfCheck
         var otherDisplay = new DisplayArea(-2560, 40, 2560, 1440);
         var minimapArea = Navigation.MinimapArea(otherDisplay, true);
         var guide = Navigation.Guide(nodeA, fix, otherDisplay, minimapArea, true, DateTime.UtcNow);
-        if (Math.Abs(guide.Angle) > .0001 || guide.CenterX < .9 || guide.CenterX > .95 || guide.CenterY < .24 || guide.CenterY > .27)
+        if (Math.Abs(guide.Angle) > .0001 || guide.CenterX != .5 || guide.CenterY != .60)
             throw new Exception("Navigation direction or multi-monitor coordinates incorrect");
+        var minimapFrame = Navigation.ProjectMinimap(new MarkerIndex([nodeA, nodeB, collectible]), selectedNodes, fix with { Scale = 4 }, otherDisplay, minimapArea, true, DateTime.UtcNow);
+        var minimapProjected = minimapFrame.Markers.Single(m => m.Id == "a");
+        var expectedX = (minimapArea.X - otherDisplay.X + minimapArea.Width / 2.0 + 40) / otherDisplay.Width;
+        if (Math.Abs(minimapProjected.X - expectedX) > .000001 || minimapFrame.Markers.Length != 3)
+            throw new Exception("Minimap marker projection or selection incorrect");
         var motion = new MarkerMotion();
         var firstMarker = new PlacedMarker(100, 100, "test", "node");
         var movedMarker = firstMarker with { X = 120 };

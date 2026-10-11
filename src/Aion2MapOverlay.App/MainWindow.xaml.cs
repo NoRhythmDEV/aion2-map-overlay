@@ -37,11 +37,11 @@ public partial class MainWindow : Window
     private ScreenshotHotkey? screenshotHotkey;
     private bool screenshotTransition;
     private DateTime lastStatus;
-    private sealed record SavedSettings(string[] Enabled, double Size, double Opacity, int Display, bool Navigation = false, int MinimapPreset = 1, bool AutomaticUpdates = true);
+    private sealed record SavedSettings(string[] Enabled, double Size, double Opacity, int Display, bool Navigation = false, int MinimapPreset = 1, bool AutomaticUpdates = true, bool MinimapIcons = true);
     private readonly CancellationTokenSource lifetime = new();
     private AvailableUpdate? availableUpdate;
     private bool checkingUpdates, setupBusy;
-    private sealed record NavigationOptions(bool Enabled, bool Large);
+    private sealed record NavigationOptions(bool Enabled, bool Large, bool Icons = true);
     private NavigationOptions navigationOptions = new(false, true);
 
     public MainWindow()
@@ -104,9 +104,10 @@ public partial class MainWindow : Window
                 IconSize.Value = Math.Clamp(saved.Size, 10, 36); IconOpacity.Value = Math.Clamp(saved.Opacity, .25, 1);
                 DisplayPicker.SelectedIndex = Math.Clamp(saved.Display, 0, Math.Max(0, DisplayPicker.Items.Count - 1));
                 NavigationToggle.IsChecked = saved.Navigation;
+                MinimapIconsToggle.IsChecked = saved.MinimapIcons;
                 MinimapPresetPicker.SelectedIndex = Math.Clamp(saved.MinimapPreset, 0, 1);
             }
-            Volatile.Write(ref navigationOptions, new(NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex == 1));
+            Volatile.Write(ref navigationOptions, new(NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex == 1, MinimapIconsToggle.IsChecked == true));
             GroupsList.ItemsSource = groups; ready = true; SelectionChanged();
             StatusText.Text = $"{index.Markers.Count:N0} locations · {groups.Count} toggleable categories. Ready.";
             UpdateResourceUsage();
@@ -134,6 +135,9 @@ public partial class MainWindow : Window
                 await Task.Run(() => DataSetup.DownloadAsync(new Progress<string>(message => Dispatcher.InvokeAsync(() => SetupText.Text = message)), lifetime.Token));
             else
             {
+                if (MessageBox.Show(this,
+                    "Open the full Verteron map in Aion 2 first.\n\nClick OK when ready, then switch back to Aion 2. Calibration captures the map after 3 seconds. Keep the map open until the countdown finishes.",
+                    "Calibrate map", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
                 var display = (DisplayArea)DisplayPicker.SelectedItem;
                 for (var seconds = 3; seconds > 0; seconds--)
                 {
@@ -266,12 +270,13 @@ public partial class MainWindow : Window
                     var aligned = tracker.Process(gray);
                     OverlayFrame? frame = null;
                     GuidanceFrame? guidance = null;
+                    MinimapFrame? minimap = null;
                     string? guidanceStatus = null;
                     var navigationSettings = Volatile.Read(ref navigationOptions);
-                    if (!navigationSettings.Enabled) navigation.Dispose();
+                    if (!navigationSettings.Enabled && !navigationSettings.Icons) navigation.Dispose();
                     else if (aligned is null && !tracker.IsMapVisible(gray))
                     {
-                        (guidance, guidanceStatus) = navigation.Process(navigationSettings.Large, Volatile.Read(ref selected));
+                        (guidance, minimap, guidanceStatus) = navigation.Process(navigationSettings.Large, Volatile.Read(ref selected), navigationSettings.Enabled, navigationSettings.Icons);
                     }
                     if (aligned is not null)
                     {
@@ -285,8 +290,8 @@ public partial class MainWindow : Window
                     }
                     var elapsed = watch.Elapsed.TotalMilliseconds;
                     await Deliver(frame, aligned is null ? guidanceStatus ?? "Verteron map not visible, or alignment lost." :
-                        $"{aligned.Method} · {aligned.Inliers} points · {elapsed:F0} ms · {frame!.Markers.Length} visible markers", guidance);
-                    var interval = aligned is null ? (navigationSettings.Enabled ? 100 : 200) : 33;
+                        $"{aligned.Method} · {aligned.Inliers} points · {elapsed:F0} ms · {frame!.Markers.Length} visible markers", guidance, minimap);
+                    var interval = aligned is null ? (navigationSettings.Enabled || navigationSettings.Icons ? 100 : 200) : 33;
                     await Task.Delay(Math.Max(1, (int)(interval - watch.Elapsed.TotalMilliseconds)), token);
                 }
                 finally { captureGate.Release(); }
@@ -305,14 +310,16 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task Deliver(OverlayFrame? frame, string status, GuidanceFrame? guidance = null)
+    private async Task Deliver(OverlayFrame? frame, string status, GuidanceFrame? guidance = null, MinimapFrame? minimap = null)
     {
         await Dispatcher.InvokeAsync(() =>
         {
             // A setting may have changed while the background frame was being computed.
             var options = Volatile.Read(ref navigationOptions);
             if (!options.Enabled || (guidance is not null && (guidance.Large != options.Large || !Volatile.Read(ref selected).Contains(guidance.GroupKey)))) guidance = null;
-            overlay?.Update(frame, IconSize.Value, IconOpacity.Value, guidance);
+            if (!options.Icons || minimap?.Large != options.Large) minimap = null;
+            else if (minimap is not null) minimap = minimap with { Markers = minimap.Markers.Where(m => Volatile.Read(ref selected).Contains(m.Key)).ToArray() };
+            overlay?.Update(frame, IconSize.Value, IconOpacity.Value, guidance, minimap);
             if (DateTime.UtcNow - lastStatus > TimeSpan.FromMilliseconds(250)) { StatusText.Text = status; lastStatus = DateTime.UtcNow; }
         }, DispatcherPriority.Render);
     }
@@ -382,7 +389,7 @@ public partial class MainWindow : Window
     private void UpdateNavigationOptions()
     {
         if (!ready) return;
-        Volatile.Write(ref navigationOptions, new(NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex == 1));
+        Volatile.Write(ref navigationOptions, new(NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex == 1, MinimapIconsToggle.IsChecked == true));
         overlay?.ClearGuidance();
         saveTimer.Stop(); saveTimer.Start();
     }
@@ -429,7 +436,7 @@ public partial class MainWindow : Window
         try
         {
             var settings = new SavedSettings(groups.Where(g => g.Enabled).Select(g => g.Key).ToArray(), IconSize.Value, IconOpacity.Value, DisplayPicker.SelectedIndex,
-                NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex, AutomaticUpdateToggle.IsChecked == true);
+                NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex, AutomaticUpdateToggle.IsChecked == true, MinimapIconsToggle.IsChecked == true);
             var temporary = Paths.Settings + ".tmp";
             File.WriteAllText(temporary, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
             File.Move(temporary, Paths.Settings, true);

@@ -74,7 +74,8 @@
      <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="200"/></Grid.ColumnDefinitions>
      <StackPanel VerticalAlignment="Center">
       <CheckBox x:Name="NavigationToggle" Content="Nearest resource direction" Foreground="#E7EDF5" Checked="Navigation_Changed" Unchecked="Navigation_Changed"/>
-      <TextBlock Text="Ring on the minimap while the full map is closed" FontSize="11" Foreground="#87A1BD" Margin="20,5,0,0"/>
+      <CheckBox x:Name="MinimapIconsToggle" Content="Resource icons on minimap" IsChecked="True" Foreground="#E7EDF5" Margin="0,8,0,0" Checked="Navigation_Changed" Unchecked="Navigation_Changed"/>
+      <TextBlock Text="Compass near your character · north-up, not camera-relative" FontSize="11" Foreground="#87A1BD" Margin="20,5,0,0"/>
      </StackPanel>
      <ComboBox x:Name="MinimapPresetPicker" Grid.Column="1" SelectedIndex="1" SelectionChanged="MinimapPreset_Changed" ToolTip="Choose the minimap layout used in Aion 2">
       <ComboBoxItem Content="Default minimap"/><ComboBoxItem Content="Larger minimap"/>

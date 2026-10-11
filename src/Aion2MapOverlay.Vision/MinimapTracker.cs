@@ -3,7 +3,7 @@ using OpenCvSharp.Features2D;
 
 namespace Aion2MapOverlay.Vision;
 
-public sealed record MinimapFix(double PlayerX, double PlayerY, double Rotation, int Inliers, double MedianError);
+public sealed record MinimapFix(double PlayerX, double PlayerY, double Rotation, int Inliers, double MedianError, double Scale = 1);
 
 // Native-resolution minimap terrain matching. Coordinates use the existing 2048px reference.
 public sealed class MinimapTracker : IDisposable
@@ -52,7 +52,7 @@ public sealed class MinimapTracker : IDisposable
         var playerX = (a * (cx - x) + b * (cy - y)) / (a * a + b * b) / 2;
         var playerY = (-b * (cx - x) + a * (cy - y)) / (a * a + b * b) / 2;
         if (!double.IsFinite(playerX) || !double.IsFinite(playerY) || playerX < 0 || playerX > 2048 || playerY < 0 || playerY > 2048) return null;
-        return new(playerX, playerY, rotation, keep.Length, errors[errors.Length / 2]);
+        return new(playerX, playerY, rotation, keep.Length, errors[errors.Length / 2], scale * 2);
     }
 
     public void Dispose() { sift.Dispose(); descriptors.Dispose(); matcher.Dispose(); }

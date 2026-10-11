@@ -12,7 +12,8 @@ Extract the ZIP and run `aion2-map-overlay.exe`. On first launch, download the m
 
 - **Resource filters:** Choose from 15 gatherable and collectible categories covering 4,733 Verteron locations.
 - **Map overlay:** Icons stay aligned as you pan and zoom, and hide when tracking is lost.
-- **Minimap direction:** An optional ring points toward the nearest selected gatherable while the full map is closed.
+- **Minimap icons:** Selected resources and collectibles appear on the minimap while the full map is closed.
+- **Nearest resource compass:** An optional north-up ring near your character points toward the nearest selected gatherable. It does not follow camera rotation.
 - **Custom appearance:** Adjust icon size and opacity, search categories, and toggle resources with a click.
 - **Saved preferences:** Your filters, display, and appearance settings carry over between sessions.
 - **Screenshots:** Press **F8**, use **Win+Shift+S**, then press **F8** again to resume tracking.

@@ -6,6 +6,8 @@ namespace Aion2MapOverlay.App;
 
 internal sealed record GuidanceFrame(double CenterX, double CenterY, double Radius, double Angle, string Name, string GroupKey, bool Large, DateTime CapturedAt);
 
+internal sealed record MinimapFrame(PlacedMarker[] Markers, double Left, double Top, double Width, double Height, bool Large, DateTime CapturedAt);
+
 internal static class Navigation
 {
     public static DisplayArea MinimapArea(DisplayArea display, bool large)
@@ -29,12 +31,29 @@ internal static class Navigation
 
     public static GuidanceFrame Guide(MapMarker target, MinimapFix fix, DisplayArea display, DisplayArea area, bool large, DateTime capturedAt)
     {
-        return new((area.X - display.X + area.Width / 2.0) / display.Width,
-            (area.Y - display.Y + area.Height / 2.0) / display.Height,
-            Math.Min(area.Width, area.Height) * .43 / display.Width,
-            Math.Atan2(target.ReferenceY - fix.PlayerY, target.ReferenceX - fix.PlayerX) + fix.Rotation,
+        // North-up compass HUD near the character; this is not camera-relative projection.
+        return new(.5, .60, .045,
+            Math.Atan2(target.ReferenceY - fix.PlayerY, target.ReferenceX - fix.PlayerX),
             target.Name, target.GroupKey, large, capturedAt);
     }
+    public static MinimapFrame ProjectMinimap(MarkerIndex index, HashSet<string> enabled, MinimapFix fix,
+        DisplayArea display, DisplayArea area, bool large, DateTime capturedAt)
+    {
+        var reach = Math.Sqrt(area.Width * area.Width + area.Height * area.Height) / (2 * fix.Scale);
+        var cosine = Math.Cos(fix.Rotation); var sine = Math.Sin(fix.Rotation);
+        var markers = index.Query(fix.PlayerX - reach, fix.PlayerY - reach, fix.PlayerX + reach, fix.PlayerY + reach)
+            .Where(m => enabled.Contains(m.GroupKey)).Select(m =>
+            {
+                var dx = m.ReferenceX - fix.PlayerX; var dy = m.ReferenceY - fix.PlayerY;
+                var x = area.Width / 2.0 + (cosine * dx - sine * dy) * fix.Scale;
+                var y = area.Height / 2.0 + (sine * dx + cosine * dy) * fix.Scale;
+                return new PlacedMarker(x, y, m.GroupKey, m.Id);
+            }).Where(m => m.X >= 8 && m.X <= area.Width - 8 && m.Y >= 8 && m.Y <= area.Height - 22)
+            .Select(m => m with { X = (area.X - display.X + m.X) / display.Width, Y = (area.Y - display.Y + m.Y) / display.Height }).ToArray();
+        return new(markers, (area.X - display.X) / (double)display.Width, (area.Y - display.Y) / (double)display.Height,
+            area.Width / (double)display.Width, (area.Height - 16) / (double)display.Height, large, capturedAt);
+    }
+
 }
 
 internal sealed class NavigationSession(MarkerIndex index, DisplayArea display) : IDisposable
@@ -43,10 +62,9 @@ internal sealed class NavigationSession(MarkerIndex index, DisplayArea display) 
     private DesktopCapture? capture;
     private MapMarker? target;
 
-    public (GuidanceFrame? Frame, string Status) Process(bool large, HashSet<string> enabled)
+    public (GuidanceFrame? Frame, MinimapFrame? Minimap, string Status) Process(bool large, HashSet<string> enabled, bool direction = true, bool showIcons = true)
     {
-        if (!index.Markers.Any(m => m.Type == "gatherable" && enabled.Contains(m.GroupKey)))
-            return (null, "Direction: select at least one gatherable.");
+        if (enabled.Count == 0) return (null, null, "Select a resource or collectible.");
         tracker ??= new MinimapTracker(Paths.Reference);
         var area = Navigation.MinimapArea(display, large);
         if (capture?.Display != area)
@@ -56,10 +74,11 @@ internal sealed class NavigationSession(MarkerIndex index, DisplayArea display) 
         var capturedAt = DateTime.UtcNow;
         using var gray = capture.GrabGray();
         var fix = tracker.Process(gray);
-        if (fix is null) { target = null; return (null, "Direction: minimap alignment lost. Check your minimap preset."); }
-        target = Navigation.Nearest(index.Markers, enabled, fix, target);
-        return target is null ? (null, "Direction: no selected gatherable found.") :
-            (Navigation.Guide(target, fix, display, area, large, capturedAt), $"Direction: {target.Name} · {fix.Inliers} terrain points");
+        if (fix is null) { target = null; return (null, null, "Minimap alignment lost. Check your minimap preset."); }
+        var minimap = showIcons ? Navigation.ProjectMinimap(index, enabled, fix, display, area, large, capturedAt) : null;
+        target = direction ? Navigation.Nearest(index.Markers, enabled, fix, target) : null;
+        return (target is null ? null : Navigation.Guide(target, fix, display, area, large, capturedAt), minimap,
+            $"Minimap · {fix.Inliers} terrain points" + (target is null ? "" : $" · Nearest: {target.Name} (north-up)"));
     }
 
     public void Dispose()

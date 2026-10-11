@@ -34,18 +34,18 @@ internal sealed class OverlayWindow : Window
         Loaded += (_, _) => { SetWindowPos(new WindowInteropHelper(this).Handle, -1, display.X, display.Y, display.Width, display.Height, 0x0010); EnsureCaptureExcluded(); };
         expiry = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) =>
         {
-            if ((surface.Frame is not null || surface.Guidance is not null) && !surface.Frozen) surface.InvalidateVisual();
+            if ((surface.Frame is not null || surface.Guidance is not null || surface.Minimap is not null) && !surface.Frozen) surface.InvalidateVisual();
         }, Dispatcher);
         Closed += (_, _) => expiry.Stop();
     }
 
-    public void Update(OverlayFrame? frame, double size, double opacity, GuidanceFrame? guidance = null)
+    public void Update(OverlayFrame? frame, double size, double opacity, GuidanceFrame? guidance = null, MinimapFrame? minimap = null)
     {
         if (surface.Frozen) return;
-        surface.SetFrame(frame); surface.Guidance = guidance; surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual();
+        surface.SetFrame(frame); surface.Guidance = guidance; surface.Minimap = minimap; surface.IconSize = size; surface.IconOpacity = opacity; surface.InvalidateVisual();
     }
 
-    public void ClearGuidance() { surface.Guidance = null; surface.InvalidateVisual(); }
+    public void ClearGuidance() { surface.Guidance = null; surface.Minimap = null; surface.InvalidateVisual(); }
 
     public bool BeginScreenshotMode()
     {
@@ -91,6 +91,7 @@ internal sealed class OverlayWindow : Window
         public double IconOpacity { get; set; } = .9;
         public bool Frozen { get; set; }
         public GuidanceFrame? Guidance { get; set; }
+        public MinimapFrame? Minimap { get; set; }
         private readonly MarkerMotion motion = new();
         public void SetFrame(OverlayFrame? frame)
         {
@@ -103,6 +104,20 @@ internal sealed class OverlayWindow : Window
             if (!Frozen && !IsGameForeground()) return;
             if (!Frozen && Guidance is { } guide && DateTime.UtcNow - guide.CapturedAt < TimeSpan.FromMilliseconds(500))
                 DrawGuide(dc, guide);
+            if (Minimap is { } mini && (Frozen || DateTime.UtcNow - mini.CapturedAt < TimeSpan.FromMilliseconds(300)))
+            {
+                dc.PushClip(new RectangleGeometry(new Rect(mini.Left * ActualWidth, mini.Top * ActualHeight, mini.Width * ActualWidth, mini.Height * ActualHeight)));
+                dc.PushOpacity(IconOpacity);
+                var size = Math.Clamp(IconSize * .75, 10, 22);
+                foreach (var marker in mini.Markers)
+                {
+                    var point = new Point(marker.X * ActualWidth, marker.Y * ActualHeight);
+                    dc.DrawEllipse(backdrop, null, point, size / 2 + 1, size / 2 + 1);
+                    if (icons.TryGetValue(marker.Key, out var icon)) dc.DrawImage(icon, new Rect(point.X - size / 2, point.Y - size / 2, size, size));
+                    else dc.DrawEllipse(Brushes.Cyan, null, point, size / 3, size / 3);
+                }
+                dc.Pop(); dc.Pop();
+            }
             var frame = Frame;
             if (frame is null || (!Frozen && (DateTime.UtcNow - frame.CapturedAt > TimeSpan.FromMilliseconds(300) || !IsGameForeground()))) return;
             var fx = ActualWidth / frame.Width; var fy = ActualHeight / frame.Height;

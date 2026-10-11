@@ -38,11 +38,13 @@ internal static class MinimapCheck
                 Cv2.DrawMarker(preview, center, Scalar.Cyan, MarkerTypes.Cross, 16, 1);
                 if (fix is not null && target is not null)
                 {
-                    var guide = Navigation.Guide(target, fix, display, area, large, DateTime.UtcNow);
-                    var radius = Math.Min(area.Width, area.Height) * .43;
-                    Cv2.Circle(preview, center, (int)radius, Scalar.Cyan, 2);
-                    var tip = new Point((int)(center.X + Math.Cos(guide.Angle) * radius), (int)(center.Y + Math.Sin(guide.Angle) * radius));
-                    Cv2.ArrowedLine(preview, center, tip, Scalar.Cyan, 2, tipLength: .2);
+                    var projected = Navigation.ProjectMinimap(index, enabled, fix, display, area, large, DateTime.UtcNow);
+                    foreach (var marker in projected.Markers)
+                    {
+                        var point = new Point((int)(marker.X * display.Width - area.X), (int)(marker.Y * display.Height - area.Y));
+                        Cv2.DrawMarker(preview, point, Scalar.Cyan, MarkerTypes.Diamond, 12, 2);
+                    }
+                    if (projected.Markers.Length == 0) throw new Exception("Expected visible Sapphire markers in supplied gameplay screenshot");
                 }
                 Cv2.ImWrite(Path.Combine(output, Path.GetFileNameWithoutExtension(path) + (large ? "-large.png" : "-default.png")), preview);
                 results.Add(new { screenshot = Path.GetFileName(path), large, aligned = fix is not null,
