@@ -1,6 +1,7 @@
 Aion 2 Map Overlay - Windows x64 portable
 
-Extract the ZIP into a writable folder, then run aion2-map-overlay.exe.
+Extract the ZIP into a writable location. Open the aion2-map-overlay folder,
+then run aion2-map-overlay.exe.
 Keep the accompanying DLLs and runtime files beside the executable.
 No installer or separate .NET installation is needed.
 
@@ -32,6 +33,13 @@ cone. A node straight ahead points up on the ring. Guidance hides if the cone is
 obscured or ambiguous; minimap icons can still be shown independently.
 For screenshots of the map or gameplay overlays: F8, Win+Shift+S, then F8 again.
 Screenshot mode freezes tracking until you resume.
+
+For the supported larger minimap layout, click Larger minimap setup in the app
+and Copy to clipboard. In Aion 2: ESC > Edit HUD > Load > Import Code, paste,
+then Import and save. The preset imports the full HUD layout.
+
+Temporary screen capture failures retry automatically while hiding stale icons.
+Repeated failures stop tracking; details are in logs/overlay.log beside the app.
 
 Source, release notes, and data setup:
 https://github.com/NoRhythmDEV/aion2-map-overlay

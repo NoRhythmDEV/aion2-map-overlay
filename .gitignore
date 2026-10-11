@@ -14,3 +14,4 @@ data/processed/*
 !data/processed/.gitkeep
 [Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
 docs/
+logs/

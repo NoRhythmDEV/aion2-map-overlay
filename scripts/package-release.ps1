@@ -30,5 +30,33 @@ Compress-Archive -Path (Join-Path $package '*') -DestinationPath $zip -Force -Co
 $verifyPath = Join-Path $outputRoot ('package-check-' + [Guid]::NewGuid().ToString('N'))
 $verifyProcess = Start-Process -FilePath (Join-Path $package 'aion2-map-overlay.exe') -ArgumentList @('--verify-update-package', ('"' + $verifyPath + '"'), ('"' + $zip + '"'), $Version) -WindowStyle Hidden -Wait -PassThru
 if ($verifyProcess.ExitCode -ne 0) { Get-Content -LiteralPath (Join-Path $verifyPath 'error.txt'); throw 'Actual release ZIP verification failed.' }
-((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($zip)) | Set-Content -LiteralPath (Join-Path $outputRoot 'SHA256SUMS') -Encoding ascii
+# Keep the flat archive for installed updaters; manual downloads get one named folder.
+$bundleRoot = Join-Path $outputRoot ('bundle-' + [Guid]::NewGuid().ToString('N'))
+$folder = Join-Path $bundleRoot 'aion2-map-overlay'
+New-Item -ItemType Directory -Path $folder -Force | Out-Null
+Copy-Item -Path (Join-Path $package '*') -Destination $folder -Recurse
+$downloadZip = Join-Path $outputRoot 'aion2-map-overlay-win-x64.zip'
+Compress-Archive -LiteralPath $folder -DestinationPath $downloadZip -Force -CompressionLevel Optimal
+$flatArchive = [IO.Compression.ZipFile]::OpenRead($zip)
+$folderArchive = [IO.Compression.ZipFile]::OpenRead($downloadZip)
+try {
+    $flatEntries = @($flatArchive.Entries | Where-Object { !$_.FullName.EndsWith('/') })
+    $downloadEntries = @($folderArchive.Entries | Where-Object { !$_.FullName.EndsWith('/') })
+    if ($flatEntries.Count -ne $downloadEntries.Count) { throw 'Folder package file count differs.' }
+    foreach ($entry in $downloadEntries) {
+        if (!$entry.FullName.StartsWith('aion2-map-overlay/')) { throw 'Manual ZIP contains files outside the application folder.' }
+        $original = $flatArchive.GetEntry($entry.FullName.Substring('aion2-map-overlay/'.Length))
+        if (!$original -or $original.Length -ne $entry.Length) { throw 'Folder package content differs.' }
+        $originalStream = $original.Open(); $downloadStream = $entry.Open()
+        try {
+            $originalHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($originalStream))
+            $downloadHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($downloadStream))
+            if ($originalHash -ne $downloadHash) { throw 'Folder package hash differs.' }
+        } finally { $originalStream.Dispose(); $downloadStream.Dispose() }
+    }
+} finally { $flatArchive.Dispose(); $folderArchive.Dispose() }
+@($downloadZip, $zip) | ForEach-Object {
+    (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($_)
+} | Set-Content -LiteralPath (Join-Path $outputRoot 'SHA256SUMS') -Encoding ascii
+Write-Output "Manual download (one folder): $downloadZip"
 Write-Output "Public application-only portable: $zip"

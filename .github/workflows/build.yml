@@ -40,6 +40,7 @@ jobs:
         with:
           name: windows-portable
           path: |
+            artifacts/release/aion2-map-overlay-win-x64.zip
             artifacts/release/aion2-map-overlay-win-x64-portable.zip
             artifacts/release/SHA256SUMS
           if-no-files-found: error
@@ -63,5 +64,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          printf '%s\n' 'Windows x64 portable build. Extract the ZIP and run aion2-map-overlay.exe.' '' 'First run: click Download map data to fetch assets directly from Questlog, then calibrate with the Verteron map open. Data/artwork are not redistributed in this ZIP. Existing users can copy their data folder and settings.local.json from a local build; in-app updates preserve both.' > release-notes.md
-          gh release create "$RELEASE_TAG" release/aion2-map-overlay-win-x64-portable.zip release/SHA256SUMS --verify-tag --title "Aion 2 Map Overlay $RELEASE_TAG" --notes-file release-notes.md --generate-notes --latest
+          printf '%s\n' 'Manual download: aion2-map-overlay-win-x64.zip. Extract it to get one aion2-map-overlay folder, then run the executable inside. The portable.zip asset is a compatibility package for the in-app updater.' '' 'First run: click Download map data to fetch assets directly from Questlog, then calibrate with the Verteron map open. Data/artwork are not redistributed in this ZIP. Existing users can copy their data folder and settings.local.json from a local build; in-app updates preserve both.' > release-notes.md
+          gh release create "$RELEASE_TAG" "release/aion2-map-overlay-win-x64.zip#Windows portable - extract to one folder" "release/aion2-map-overlay-win-x64-portable.zip#Updater compatibility package" release/SHA256SUMS --verify-tag --title "Aion 2 Map Overlay $RELEASE_TAG" --notes-file release-notes.md --generate-notes --latest

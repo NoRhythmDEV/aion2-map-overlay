@@ -77,9 +77,12 @@
       <CheckBox x:Name="MinimapIconsToggle" Content="Resource icons on minimap" IsChecked="True" Foreground="#E7EDF5" Margin="0,8,0,0" Checked="Navigation_Changed" Unchecked="Navigation_Changed"/>
       <TextBlock Text="Ring near your character · follows the minimap camera cone" FontSize="11" Foreground="#87A1BD" Margin="20,5,0,0"/>
      </StackPanel>
-     <ComboBox x:Name="MinimapPresetPicker" Grid.Column="1" SelectedIndex="1" SelectionChanged="MinimapPreset_Changed" ToolTip="Choose the minimap layout used in Aion 2">
+     <StackPanel Grid.Column="1">
+     <ComboBox x:Name="MinimapPresetPicker" SelectedIndex="1" SelectionChanged="MinimapPreset_Changed" ToolTip="Choose the minimap layout used in Aion 2">
       <ComboBoxItem Content="Default minimap"/><ComboBoxItem Content="Larger minimap"/>
      </ComboBox>
+     <Button Content="Larger minimap setup…" Click="HudGuide_Click" Margin="0,7,0,0" Padding="8,5" FontSize="11"/>
+     </StackPanel>
     </Grid>
    </Grid>
   </Border>

@@ -4,9 +4,11 @@ Find gatherables and collectibles without switching between the game and a websi
 
 Uses screen capture only. It does not read game memory, capture game network traffic, or send input to the game.
 
-**[Download the portable Windows app](https://github.com/NoRhythmDEV/aion2-map-overlay/releases/latest)**
+**[Download the portable Windows app](https://github.com/NoRhythmDEV/aion2-map-overlay/releases/latest/download/aion2-map-overlay-win-x64.zip)**
 
-Extract the ZIP and run `aion2-map-overlay.exe`. On first launch, download the map data from the app, then follow the map calibration prompt. No installer is required.
+Extract the ZIP, open the `aion2-map-overlay` folder, and run `aion2-map-overlay.exe`. On first launch, download the map data from the app, then follow the map calibration prompt. No installer is required.
+
+For the larger minimap layout, open **Larger minimap setup…** in the app. Copy the preset code, then in Aion 2 press **ESC → Edit HUD → Load → Import Code**, paste it, and click **Import**.
 
 ## Features
 
@@ -18,6 +20,7 @@ Extract the ZIP and run `aion2-map-overlay.exe`. On first launch, download the m
 - **Saved preferences:** Your filters, display, and appearance settings carry over between sessions.
 - **Screenshots:** Press **F8**, use **Win+Shift+S**, then press **F8** again to resume tracking.
 - **In-app updates:** Check GitHub for new versions and install them without losing your settings or downloaded data.
+- **Capture recovery:** Temporary capture interruptions retry automatically; error details are saved locally in `logs/overlay.log`.
 - **Usage display:** Keep an eye on the app's CPU and RAM use.
 
 Currently supports **Verteron with the English map UI**, at a 16:9 display ratio. Markers show possible spawn locations; live availability and gathering are not detected. Minimap guidance is experimental.
@@ -39,4 +42,4 @@ dotnet build Aion2MapOverlay.sln -c Release
 .\scripts\package-release.ps1
 ```
 
-The portable ZIP is created in `artifacts/release/`. It includes the .NET runtime; map data downloads through the app on first launch.
+The manual-download ZIP is `artifacts/release/aion2-map-overlay-win-x64.zip`. It includes the .NET runtime; map data downloads through the app on first launch.

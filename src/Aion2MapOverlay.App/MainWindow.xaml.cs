@@ -252,6 +252,7 @@ public partial class MainWindow : Window
             using var tracker = new TerrainTracker(Paths.Reference, Paths.Title);
             using var capture = new DesktopCapture(display);
             using var navigation = new NavigationSession(index, display);
+            var recovery = new FrameRecovery();
             while (!token.IsCancellationRequested)
             {
                 if (capturePaused) { await Task.Delay(50, token); continue; }
@@ -288,18 +289,27 @@ public partial class MainWindow : Window
                             .Select(m => { var point = t.Apply(m.ReferenceX, m.ReferenceY); return new PlacedMarker(point.X, point.Y, m.GroupKey, m.Id); }).ToArray();
                         frame = new(markers, capture.Width, capture.Height, capturedAt);
                     }
+                    recovery.Succeeded();
                     var elapsed = watch.Elapsed.TotalMilliseconds;
                     await Deliver(frame, aligned is null ? guidanceStatus ?? "Verteron map not visible, or alignment lost." :
                         $"{aligned.Method} · {aligned.Inliers} points · {elapsed:F0} ms · {frame!.Markers.Length} visible markers", guidance, minimap);
                     var interval = aligned is null ? (navigationSettings.Enabled || navigationSettings.Icons ? 100 : 200) : 33;
                     await Task.Delay(Math.Max(1, (int)(interval - watch.Elapsed.TotalMilliseconds)), token);
                 }
+                catch (Exception error) when (error is ScreenCaptureException or OpenCvSharp.OpenCVException)
+                {
+                    tracker.Reset(); capture.Reset(); navigation.Dispose();
+                    RuntimeLog.Write($"Frame failed on display {display}", error);
+                    if (!recovery.TryRetry(error, out var delay)) throw new InvalidOperationException("Capture/recognition failed repeatedly. Try Start again. Details: logs/overlay.log", error);
+                    await Deliver(null, $"Capture interrupted; retrying {recovery.Failures}/8. {error.Message}");
+                    await Task.Delay(delay, token);
+                }
                 finally { captureGate.Release(); }
             }
         }, token);
         try { await worker; }
         catch (OperationCanceledException) { }
-        catch (Exception error) { StatusText.Text = "Overlay stopped: " + error.Message; }
+        catch (Exception error) { RuntimeLog.Write("Overlay stopped", error); StatusText.Text = "Overlay stopped: " + error.Message + " · Details: logs/overlay.log"; }
         finally
         {
             overlay?.Close(); overlay = null; worker = null; cancellation?.Dispose(); cancellation = null;
@@ -381,6 +391,8 @@ public partial class MainWindow : Window
         }
         finally { ScreenshotModeButton.IsEnabled = true; }
     }
+
+    private void HudGuide_Click(object sender, RoutedEventArgs e) => HudGuide.Show(this);
 
     private void Stop_Click(object sender, RoutedEventArgs e) { cancellation?.Cancel(); overlay?.Update(null, 20, 1); StatusText.Text = "Stopped."; }
     private void Appearance_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) { if (ready) SelectionChanged(); }

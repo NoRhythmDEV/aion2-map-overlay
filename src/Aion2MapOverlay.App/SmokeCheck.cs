@@ -12,6 +12,20 @@ internal static class SmokeCheck
     {
         Directory.CreateDirectory(output);
         CameraHeadingChecks.Run();
+        var hudCode = HudGuide.Code;
+        _ = Convert.FromBase64String(hudCode);
+        if (!hudCode.EndsWith('=') || hudCode.Any(char.IsWhiteSpace) ||
+            Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(hudCode))).ToLowerInvariant() != "f02fa6f38784b3098afdae76194bbbbf770297f7df3e5242538b02dc76a2b8cb")
+            throw new Exception("HUD code differs from the supplied code or contains trailing characters");
+        var recovery = new FrameRecovery();
+        var captureFailure = new Aion2MapOverlay.Capture.ScreenCaptureException("Simulated desktop interruption", 5);
+        if (!recovery.TryRetry(captureFailure, out var firstDelay) || firstDelay <= TimeSpan.Zero) throw new Exception("Temporary capture failure must retry");
+        recovery.Succeeded();
+        if (recovery.Failures != 0) throw new Exception("Successful frames must reset recovery");
+        for (var i = 0; i < 8; i++)
+            if (!recovery.TryRetry(captureFailure, out var delay) || delay > TimeSpan.FromSeconds(3)) throw new Exception("Capture retries must be bounded and backed off");
+        if (recovery.TryRetry(captureFailure, out _) || recovery.TryRetry(new InvalidOperationException("Unexpected failure"), out _) ||
+            recovery.TryRetry(new OperationCanceledException(), out _)) throw new Exception("Permanent errors and cancellation must not silently retry");
         using var image = Mat.Zeros(64, 64, MatType.CV_8UC1).ToMat();
         Cv2.Circle(image, new(32, 32), 10, Scalar.White, -1);
         if (Cv2.CountNonZero(image) < 100) throw new Exception("Native OpenCV runtime unavailable.");
@@ -64,7 +78,7 @@ internal static class SmokeCheck
         }
         finally { Paths.DataRoot = originalDataRoot; }
         File.WriteAllText(Path.Combine(output, "smoke-test.json"), JsonSerializer.Serialize(new {
-            version = AppUpdates.CurrentVersion.ToString(), nativeOpenCvPassed = true, cameraHeadingPassed = true,
+            version = AppUpdates.CurrentVersion.ToString(), nativeOpenCvPassed = true, cameraHeadingPassed = true, hudCodeVerified = true, captureRecoveryPassed = true,
             unsafePathsRejected = 8, validPackageAccepted = true, tamperedPackageRejected = true, firstRunSetupPassed = true
         }, new JsonSerializerOptions { WriteIndented = true }));
     }
