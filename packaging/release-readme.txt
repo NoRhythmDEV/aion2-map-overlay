@@ -7,8 +7,9 @@ No installer or separate .NET installation is needed.
 This public package contains the application, runtime, and component notices.
 It does not include Questlog marker data, map artwork, icons, or user screenshots.
 On first run, click Download map data to fetch Verteron markers, map artwork,
-and resource icons directly from Questlog. Then click Calibrate map and return
-to Aion 2's open Verteron map during the 3-second countdown. Calibration creates
+and resource icons directly from Questlog. Open the Verteron map, click Calibrate
+map, read the instructions, then click OK and switch back to Aion 2 during the
+3-second countdown. Calibration creates
 a small local title reference after verifying the terrain. No game input is sent.
 An internet connection is needed for setup; downloaded data is cached afterward.
 If you already use a local test build, you can instead copy its entire data folder
@@ -25,6 +26,12 @@ The app observes normal Windows screen images and the foreground window title.
 It does not read game memory or files, capture game network traffic, inject code,
 or send game input. Update checks/downloads contact GitHub over HTTPS.
 Known spawn locations do not imply that a resource is currently available.
+
+The optional nearest-resource ring follows camera direction from the minimap view
+cone. A node straight ahead points up on the ring. Guidance hides if the cone is
+obscured or ambiguous; minimap icons can still be shown independently.
+For screenshots of the map or gameplay overlays: F8, Win+Shift+S, then F8 again.
+Screenshot mode freezes tracking until you resume.
 
 Source, release notes, and data setup:
 https://github.com/NoRhythmDEV/aion2-map-overlay

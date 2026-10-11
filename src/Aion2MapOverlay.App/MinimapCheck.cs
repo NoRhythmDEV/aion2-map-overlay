@@ -32,6 +32,7 @@ internal static class MinimapCheck
                 var timer = Stopwatch.StartNew();
                 var fix = tracker.Process(gray);
                 var milliseconds = timer.Elapsed.TotalMilliseconds;
+                var heading = fix is null ? null : CameraHeading.Detect(gray);
                 var target = fix is null ? null : Navigation.Nearest(index.Markers, enabled, fix);
                 using var preview = crop.Clone();
                 var center = new Point(area.Width / 2, area.Height / 2);
@@ -48,7 +49,7 @@ internal static class MinimapCheck
                 }
                 Cv2.ImWrite(Path.Combine(output, Path.GetFileNameWithoutExtension(path) + (large ? "-large.png" : "-default.png")), preview);
                 results.Add(new { screenshot = Path.GetFileName(path), large, aligned = fix is not null,
-                    fix, milliseconds, target = target?.Name, targetId = target?.Id });
+                    fix, heading, headingDegrees = heading?.Angle * 180 / Math.PI, milliseconds, target = target?.Name, targetId = target?.Id });
             }
         }
         using var blank = Mat.Zeros(400, 300, MatType.CV_8UC1).ToMat();

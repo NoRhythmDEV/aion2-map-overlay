@@ -11,6 +11,7 @@ internal static class SmokeCheck
     public static void Run(string output)
     {
         Directory.CreateDirectory(output);
+        CameraHeadingChecks.Run();
         using var image = Mat.Zeros(64, 64, MatType.CV_8UC1).ToMat();
         Cv2.Circle(image, new(32, 32), 10, Scalar.White, -1);
         if (Cv2.CountNonZero(image) < 100) throw new Exception("Native OpenCV runtime unavailable.");
@@ -63,7 +64,7 @@ internal static class SmokeCheck
         }
         finally { Paths.DataRoot = originalDataRoot; }
         File.WriteAllText(Path.Combine(output, "smoke-test.json"), JsonSerializer.Serialize(new {
-            version = AppUpdates.CurrentVersion.ToString(), nativeOpenCvPassed = true,
+            version = AppUpdates.CurrentVersion.ToString(), nativeOpenCvPassed = true, cameraHeadingPassed = true,
             unsafePathsRejected = 8, validPackageAccepted = true, tamperedPackageRejected = true, firstRunSetupPassed = true
         }, new JsonSerializerOptions { WriteIndented = true }));
     }

@@ -54,7 +54,7 @@
      <Button x:Name="StartButton" Content="Start overlay" Background="#23637B" BorderBrush="#3289A2" Click="Start_Click"/>
      <Button x:Name="StopButton" Content="Stop" IsEnabled="False" Click="Stop_Click"/>
      <Button Content="Test screenshot…" Click="Screenshot_Click"/>
-     <Button x:Name="ScreenshotModeButton" Content="Screenshot mode (F8)" Click="ScreenshotMode_Click" ToolTip="Freeze for Win+Shift+S. This button gives you 3 seconds to return to the map."/>
+     <Button x:Name="ScreenshotModeButton" Content="Screenshot mode (F8)" Click="ScreenshotMode_Click" ToolTip="Freeze for Win+Shift+S. This button gives you 3 seconds to return to the game."/>
     </WrapPanel>
     <TextBlock x:Name="ScreenshotModeText" Text="F8 → Win+Shift+S → F8 to resume" Foreground="#87A1BD" FontSize="11" Margin="0,10,0,0"/>
     <TextBlock x:Name="StatusText" Text="Ready. Choose resources and start the overlay." TextWrapping="Wrap" Foreground="#B6C9DD" Margin="0,8,0,0"/>
@@ -75,7 +75,7 @@
      <StackPanel VerticalAlignment="Center">
       <CheckBox x:Name="NavigationToggle" Content="Nearest resource direction" Foreground="#E7EDF5" Checked="Navigation_Changed" Unchecked="Navigation_Changed"/>
       <CheckBox x:Name="MinimapIconsToggle" Content="Resource icons on minimap" IsChecked="True" Foreground="#E7EDF5" Margin="0,8,0,0" Checked="Navigation_Changed" Unchecked="Navigation_Changed"/>
-      <TextBlock Text="Compass near your character · north-up, not camera-relative" FontSize="11" Foreground="#87A1BD" Margin="20,5,0,0"/>
+      <TextBlock Text="Ring near your character · follows the minimap camera cone" FontSize="11" Foreground="#87A1BD" Margin="20,5,0,0"/>
      </StackPanel>
      <ComboBox x:Name="MinimapPresetPicker" Grid.Column="1" SelectedIndex="1" SelectionChanged="MinimapPreset_Changed" ToolTip="Choose the minimap layout used in Aion 2">
       <ComboBoxItem Content="Default minimap"/><ComboBoxItem Content="Larger minimap"/>

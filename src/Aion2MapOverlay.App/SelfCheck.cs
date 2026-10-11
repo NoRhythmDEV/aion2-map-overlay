@@ -33,14 +33,24 @@ internal static class SelfCheck
         if (Navigation.Nearest([nodeA], [], fix) is not null) throw new Exception("Disabled resources must not receive guidance");
         var otherDisplay = new DisplayArea(-2560, 40, 2560, 1440);
         var minimapArea = Navigation.MinimapArea(otherDisplay, true);
-        var guide = Navigation.Guide(nodeA, fix, otherDisplay, minimapArea, true, DateTime.UtcNow);
-        if (Math.Abs(guide.Angle) > .0001 || guide.CenterX != .5 || guide.CenterY != .60)
+        var guide = Navigation.Guide(nodeA, fix, otherDisplay, minimapArea, true, DateTime.UtcNow, 0);
+        if (Math.Abs(guide.Angle + Math.PI / 2) > .0001 || guide.CenterX != .5 || guide.CenterY != .60)
             throw new Exception("Navigation direction or multi-monitor coordinates incorrect");
         var minimapFrame = Navigation.ProjectMinimap(new MarkerIndex([nodeA, nodeB, collectible]), selectedNodes, fix with { Scale = 4 }, otherDisplay, minimapArea, true, DateTime.UtcNow);
         var minimapProjected = minimapFrame.Markers.Single(m => m.Id == "a");
         var expectedX = (minimapArea.X - otherDisplay.X + minimapArea.Width / 2.0 + 40) / otherDisplay.Width;
         if (Math.Abs(minimapProjected.X - expectedX) > .000001 || minimapFrame.Markers.Length != 3)
             throw new Exception("Minimap marker projection or selection incorrect");
+        foreach (var heading in new[] { -Math.PI, -Math.PI / 2, 0, Math.PI / 2, Math.PI - .01 })
+        {
+            var aheadNode = nodeA with { ReferenceX = fix.PlayerX + 10 * Math.Cos(heading), ReferenceY = fix.PlayerY + 10 * Math.Sin(heading) };
+            var aheadGuide = Navigation.Guide(aheadNode, fix, otherDisplay, minimapArea, true, DateTime.UtcNow, heading);
+            if (Math.Abs(aheadGuide.Angle + Math.PI / 2) > .000001) throw new Exception("A node ahead of the camera must point up");
+            var rightNode = nodeA with { ReferenceX = fix.PlayerX + 10 * Math.Cos(heading + Math.PI / 2), ReferenceY = fix.PlayerY + 10 * Math.Sin(heading + Math.PI / 2) };
+            if (Math.Abs(Navigation.Guide(rightNode, fix, otherDisplay, minimapArea, true, DateTime.UtcNow, heading).Angle) > .000001)
+                throw new Exception("A node to the camera's right must point right");
+        }
+        CameraHeadingChecks.Run();
         var motion = new MarkerMotion();
         var firstMarker = new PlacedMarker(100, 100, "test", "node");
         var movedMarker = firstMarker with { X = 120 };
@@ -131,6 +141,22 @@ internal static class SelfCheck
         if (!overlay.EndScreenshotMode() || overlay.ScreenshotMode || !overlay.CaptureExcluded)
             throw new Exception("Screenshot mode did not restore capture exclusion");
         if (overlay.BeginScreenshotMode()) throw new Exception("Resume must discard the frozen frame");
+        overlay.Update(null, 20, .9, new GuidanceFrame(.5, .6, .045, -Math.PI / 2, "Sapphire", nodeA.GroupKey, true, DateTime.UtcNow));
+        if (!overlay.BeginScreenshotMode()) throw new Exception("Gameplay guidance must enter screenshot mode");
+        var surface = (FrameworkElement)overlay.Content;
+        surface.Measure(new System.Windows.Size(1000, 600)); surface.Arrange(new System.Windows.Rect(0, 0, 1000, 600));
+        var guidanceBitmap = new RenderTargetBitmap(1000, 600, 96, 96, PixelFormats.Pbgra32); guidanceBitmap.Render(surface);
+        var tipPixel = new byte[4]; guidanceBitmap.CopyPixels(new Int32Rect(500, 310, 1, 1), tipPixel, 4, 0);
+        if (tipPixel[0] < 150 || tipPixel[1] < 80 || tipPixel[2] > 100 || tipPixel[3] == 0)
+            throw new Exception("Frozen gameplay screenshot must include the up-facing ring pointer");
+        var guidanceEncoder = new PngBitmapEncoder(); guidanceEncoder.Frames.Add(BitmapFrame.Create(guidanceBitmap));
+        using (var stream = File.Create(Path.Combine(output, "guidance-overlay.png"))) guidanceEncoder.Save(stream);
+        if (!overlay.EndScreenshotMode() || overlay.BeginScreenshotMode())
+            throw new Exception("Gameplay guidance screenshot mode must discard its frame on resume");
+        overlay.Update(null, 20, .9, null, minimapFrame with { CapturedAt = DateTime.UtcNow });
+        if (!overlay.BeginScreenshotMode() || !overlay.EndScreenshotMode()) throw new Exception("Minimap-only screenshot mode failed");
+        overlay.Update(null, 20, .9, new GuidanceFrame(.5, .6, .045, 0, "Sapphire", nodeA.GroupKey, true, DateTime.UtcNow.AddSeconds(-2)));
+        if (overlay.BeginScreenshotMode()) throw new Exception("Stale gameplay frames must not enter screenshot mode");
         overlay.Close();
         File.WriteAllText(Path.Combine(output, "self-check.json"), JsonSerializer.Serialize(new {
             spatialQueries = 100, markerCount = index.Markers.Count, toggleGroups = 15,
@@ -138,7 +164,7 @@ internal static class SelfCheck
             captureMilliseconds = captureMs, captureWidth = captured.Width, captureHeight = captured.Height,
             mapCloseHidesMarkers = true, iconCount = icons.Count, captureExclusionAccepted = true,
             screenshotModeTransitionsPassed = true, markerInterpolationPassed = true, resourceTileTogglePassed = true,
-            navigationSelectionAndGeometryPassed = true
+            navigationSelectionAndGeometryPassed = true, cameraRelativeHeadingPassed = true, gameplayScreenshotPassed = true
         }, new JsonSerializerOptions { WriteIndented = true }));
     }
 

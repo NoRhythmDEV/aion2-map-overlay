@@ -49,7 +49,8 @@ internal sealed class OverlayWindow : Window
 
     public bool BeginScreenshotMode()
     {
-        if (surface.Frame is null || DateTime.UtcNow - surface.Frame.CapturedAt > TimeSpan.FromMilliseconds(500)) return false;
+        var newest = new DateTime?[] { surface.Frame?.CapturedAt, surface.Guidance?.CapturedAt, surface.Minimap?.CapturedAt }.Max();
+        if (newest is null || DateTime.UtcNow - newest.Value > TimeSpan.FromMilliseconds(500)) return false;
         if (!SetWindowDisplayAffinity(new WindowInteropHelper(this).Handle, 0)) return false;
         CaptureExcluded = false;
         surface.Frozen = true;
@@ -63,7 +64,7 @@ internal sealed class OverlayWindow : Window
         EnsureCaptureExcluded();
         if (!CaptureExcluded) return false;
         surface.Frozen = false;
-        surface.SetFrame(null);
+        surface.SetFrame(null); surface.Guidance = null; surface.Minimap = null;
         surface.InvalidateVisual();
         return true;
     }
@@ -102,7 +103,7 @@ internal sealed class OverlayWindow : Window
         protected override void OnRender(DrawingContext dc)
         {
             if (!Frozen && !IsGameForeground()) return;
-            if (!Frozen && Guidance is { } guide && DateTime.UtcNow - guide.CapturedAt < TimeSpan.FromMilliseconds(500))
+            if (Guidance is { } guide && (Frozen || DateTime.UtcNow - guide.CapturedAt < TimeSpan.FromMilliseconds(500)))
                 DrawGuide(dc, guide);
             if (Minimap is { } mini && (Frozen || DateTime.UtcNow - mini.CapturedAt < TimeSpan.FromMilliseconds(300)))
             {
@@ -159,7 +160,7 @@ internal sealed class OverlayWindow : Window
             var box = new Rect(center.X - label.Width / 2 - 8, center.Y + radius + 8, label.Width + 16, 24);
             dc.DrawRoundedRectangle(backdrop, null, box, 5, 5);
             dc.DrawText(label, new Point(box.X + 8, box.Y + 3));
-            var north = new FormattedText("N", System.Globalization.CultureInfo.InvariantCulture,
+            var north = new FormattedText("Ahead", System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, new Typeface("Segoe UI"), 10, accent, dpi);
             dc.DrawText(north, new Point(center.X - north.Width / 2, center.Y - radius - 15));
         }

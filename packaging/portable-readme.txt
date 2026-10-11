@@ -22,13 +22,13 @@ CPU is normalized across all logical processors, like Task Manager's overall sca
 Optional nearest-resource direction:
 - Enable "Nearest resource direction" and choose your in-game minimap preset.
 - Larger minimap is the initial preset; guidance itself is off by default.
-- While the full map is closed, a north-up ring on the minimap points toward the
+- While the full map is closed, a camera-relative ring near your character points toward the
   nearest enabled gatherable and shows its name. Collectibles are not targeted.
 - The player is assumed to be at the minimap center. These two presets are tuned
   to the supplied 16:9 layout. Choose the correct preset; other UI layouts need
-  calibration. Rotation beyond 5 degrees or uncertain matches hide the ring.
+  calibration. Uncertain terrain matches or unreadable camera cones hide the ring.
 - Guidance updates at up to 10 Hz using a native-resolution minimap crop.
-- Turning the toggle off stops minimap analysis; settings persist between runs.
+- Turning both minimap icons and direction off stops minimap analysis; settings persist.
 - The pointer indicates a possible spawn, not a walkable route or availability.
   Gathering is not detected; harvested nodes are not automatically skipped.
 - Both supplied screenshots pass matching checks. Live travel, camera changes,

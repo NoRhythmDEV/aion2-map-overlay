@@ -29,11 +29,13 @@ internal static class Navigation
         return nearest;
     }
 
-    public static GuidanceFrame Guide(MapMarker target, MinimapFix fix, DisplayArea display, DisplayArea area, bool large, DateTime capturedAt)
+    public static GuidanceFrame Guide(MapMarker target, MinimapFix fix, DisplayArea display, DisplayArea area, bool large, DateTime capturedAt, double cameraHeading)
     {
-        // North-up compass HUD near the character; this is not camera-relative projection.
+        // The cone heading is measured in minimap axes; straight ahead on the HUD is up.
+        var bearing = Math.Atan2(target.ReferenceY - fix.PlayerY, target.ReferenceX - fix.PlayerX) + fix.Rotation;
+        var angle = bearing - cameraHeading - Math.PI / 2;
         return new(.5, .60, .045,
-            Math.Atan2(target.ReferenceY - fix.PlayerY, target.ReferenceX - fix.PlayerX),
+            Math.Atan2(Math.Sin(angle), Math.Cos(angle)),
             target.Name, target.GroupKey, large, capturedAt);
     }
     public static MinimapFrame ProjectMinimap(MarkerIndex index, HashSet<string> enabled, MinimapFix fix,
@@ -77,8 +79,10 @@ internal sealed class NavigationSession(MarkerIndex index, DisplayArea display) 
         if (fix is null) { target = null; return (null, null, "Minimap alignment lost. Check your minimap preset."); }
         var minimap = showIcons ? Navigation.ProjectMinimap(index, enabled, fix, display, area, large, capturedAt) : null;
         target = direction ? Navigation.Nearest(index.Markers, enabled, fix, target) : null;
-        return (target is null ? null : Navigation.Guide(target, fix, display, area, large, capturedAt), minimap,
-            $"Minimap · {fix.Inliers} terrain points" + (target is null ? "" : $" · Nearest: {target.Name} (north-up)"));
+        var heading = target is null ? null : CameraHeading.Detect(gray);
+        var guide = target is not null && heading is not null ? Navigation.Guide(target, fix, display, area, large, capturedAt, heading.Angle) : null;
+        return (guide, minimap, $"Minimap · {fix.Inliers} terrain points" +
+            (target is null ? "" : heading is null ? " · Direction hidden: camera cone not clear" : $" · Nearest: {target.Name} · camera-relative"));
     }
 
     public void Dispose()

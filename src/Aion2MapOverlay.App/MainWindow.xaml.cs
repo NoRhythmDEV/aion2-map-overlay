@@ -356,7 +356,7 @@ public partial class MainWindow : Window
                 else
                 {
                     capturePaused = false;
-                    ScreenshotModeText.Text = "Open the Verteron map and wait for markers, then press F8.";
+                    ScreenshotModeText.Text = "Wait for map or minimap markers, then press F8 in Aion 2.";
                 }
             }
             finally { captureGate.Release(); }
@@ -373,7 +373,7 @@ public partial class MainWindow : Window
         {
             for (var remaining = 3; remaining > 0; remaining--)
             {
-                ScreenshotModeText.Text = $"Return to Aion 2's open map: {remaining}…";
+                ScreenshotModeText.Text = $"Return to Aion 2: {remaining}…";
                 await Task.Delay(1000);
                 if (closing || overlay is null) return;
             }
