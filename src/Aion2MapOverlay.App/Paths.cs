@@ -4,7 +4,7 @@ namespace Aion2MapOverlay.App;
 
 internal static class Paths
 {
-    public static string DataRoot { get; } = FindDataRoot();
+    public static string DataRoot { get; internal set; } = FindDataRoot();
     public static string Reference => Path.Combine(DataRoot, "reference", "World_L_A.webp");
     public static string Title => Path.Combine(DataRoot, "reference", "verteron-title.png");
     public static string Markers => Path.Combine(DataRoot, "map-1010.json");

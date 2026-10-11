@@ -1,0 +1,67 @@
+name: Windows build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build and validate portable package
+        shell: pwsh
+        env:
+          BUILD_REF: ${{ github.ref }}
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ($env:BUILD_REF.StartsWith('refs/tags/')) {
+            $tag = $env:BUILD_REF.Substring('refs/tags/'.Length)
+            if ($tag -ne "v$version") { throw 'Release tag must match VERSION.' }
+          }
+          ./scripts/package-release.ps1 -Version $version
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-portable
+          path: |
+            artifacts/release/aion2-map-overlay-win-x64-portable.zip
+            artifacts/release/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-portable
+          path: release
+      - name: Publish stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          printf '%s\n' 'Windows x64 portable build. Extract the ZIP and run aion2-map-overlay.exe.' '' 'First run: click Download map data to fetch assets directly from Questlog, then calibrate with the Verteron map open. Data/artwork are not redistributed in this ZIP. Existing users can copy their data folder and settings.local.json from a local build; in-app updates preserve both.' > release-notes.md
+          gh release create "$RELEASE_TAG" release/aion2-map-overlay-win-x64-portable.zip release/SHA256SUMS --verify-tag --title "Aion 2 Map Overlay $RELEASE_TAG" --notes-file release-notes.md --generate-notes --latest

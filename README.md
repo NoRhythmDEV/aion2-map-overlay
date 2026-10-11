@@ -20,8 +20,22 @@ and suppresses stale or unregistered markers. The first preview is tuned to the
 supplied English Verteron screenshots at 16:9; rapid live dragging and other display
 layouts still require user testing. Collected-state editing is not implemented yet.
 
-Map data, reference artwork, and supplied screenshots are local and excluded from
-Git. The public repository does not include a ready-to-run dataset or public binary.
+Download the Windows x64 portable ZIP from [GitHub Releases](https://github.com/NoRhythmDEV/aion2-map-overlay/releases).
+Extract it to a writable folder and run `aion2-map-overlay.exe`. On first run,
+click **Download map data**, then **Calibrate map** and return to Aion 2's open
+Verteron map during the countdown. This creates a local title reference after
+terrain validation. Existing users can copy their `data` folder and
+`settings.local.json` from a previous local build to skip setup.
+
+Map data and artwork download directly from Questlog for local use; they are not
+included in the public ZIP or source repository. Screenshots remain local.
+After setup, tracking works from the cache without ongoing website downloads.
+
+The app checks GitHub Releases on startup by default and offers **Install &
+restart** for newer stable versions. Startup checks can be disabled. Updates
+verify the ZIP checksum and individual file hashes, preserve local data/settings,
+and attempt rollback if file replacement fails. GitHub hosts the update files;
+there is no separate update server. See [release maintenance](docs/releases.md).
 
 Settings use a three-column resource grid, switching to four columns in a wider
 window. Click a resource tile to toggle it; enabled tiles have a cyan border and
@@ -66,6 +80,10 @@ For a local portable folder, prepare the ignored map assets described in
 includes the .NET runtime. Keep its DLLs and data folder beside the executable;
 no installer is needed. Do not publicly redistribute the included Questlog data
 without establishing permission.
+
+For the public application-only package, run `scripts/package-release.ps1`.
+It builds a self-contained ZIP, update manifest, and SHA256SUMS, then runs
+offline smoke tests and updater replacement/rollback checks.
 
 Verification tools are built into the executable:
 

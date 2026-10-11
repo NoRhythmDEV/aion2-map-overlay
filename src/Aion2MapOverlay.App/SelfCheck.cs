@@ -92,8 +92,8 @@ internal static class SelfCheck
         System.Windows.Documents.TextElement.SetForeground(border, window.Foreground);
         System.Windows.Documents.TextElement.SetFontFamily(border, window.FontFamily);
         System.Windows.Documents.TextElement.SetFontSize(border, window.FontSize);
-        border.Measure(new System.Windows.Size(760, 900)); border.Arrange(new System.Windows.Rect(0, 0, 760, 900)); border.UpdateLayout();
-        var bitmap = new RenderTargetBitmap(760, 900, 96, 96, PixelFormats.Pbgra32); bitmap.Render(border);
+        border.Measure(new System.Windows.Size(760, 1020)); border.Arrange(new System.Windows.Rect(0, 0, 760, 1020)); border.UpdateLayout();
+        var bitmap = new RenderTargetBitmap(760, 1020, 96, 96, PixelFormats.Pbgra32); bitmap.Render(border);
         var tiles = Descendants<System.Windows.Controls.Primitives.ToggleButton>(border).Where(t => t.DataContext is MarkerGroup).ToArray();
         if (tiles.Length != 15) throw new Exception("Resource grid must contain all 15 toggle tiles");
         var tile = tiles[0];
@@ -105,12 +105,12 @@ internal static class SelfCheck
         ((System.Windows.Automation.Provider.IToggleProvider)peer).Toggle();
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var stream = File.Create(Path.Combine(output, "settings-window.png"))) encoder.Save(stream);
-        border.Measure(new System.Windows.Size(1000, 900)); border.Arrange(new System.Windows.Rect(0, 0, 1000, 900)); border.UpdateLayout();
+        border.Measure(new System.Windows.Size(1000, 1020)); border.Arrange(new System.Windows.Rect(0, 0, 1000, 1020)); border.UpdateLayout();
         if (Descendants<System.Windows.Controls.Primitives.UniformGrid>(border).Single().Columns != 4)
             throw new Exception("Wide resource grid must switch to four columns");
         groupModel.Enabled = true;
         border.UpdateLayout();
-        var wideBitmap = new RenderTargetBitmap(1000, 900, 96, 96, PixelFormats.Pbgra32); wideBitmap.Render(border);
+        var wideBitmap = new RenderTargetBitmap(1000, 1020, 96, 96, PixelFormats.Pbgra32); wideBitmap.Render(border);
         var wideEncoder = new PngBitmapEncoder(); wideEncoder.Frames.Add(BitmapFrame.Create(wideBitmap));
         using (var stream = File.Create(Path.Combine(output, "settings-window-wide.png"))) wideEncoder.Save(stream);
         groupModel.Enabled = wasEnabled;

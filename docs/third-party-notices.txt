@@ -20,6 +20,7 @@ MIT and third-party licences; see the runtime/WPF licence and notice files.
 Marker data, reference map, and resource icon references: Questlog.gg.
 Aion 2 and game assets: NCSOFT and respective owners.
 Public redistribution permission for Questlog data/assets has not been established.
-This package is a local testing copy, not a public data release.
+Public packages omit those data/assets. First-run setup downloads them directly
+from Questlog into a local cache; they are not hosted in this project's releases.
 
 The Hidden Cube glyph is drawn by this application rather than copied from Questlog.

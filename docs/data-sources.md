@@ -30,6 +30,13 @@ Coordinate conversion is implemented in QuestlogData.LoadVerteron.
 Use `python scripts/fetch-questlog-assets.py` to prepare the ignored local assets.
 It downloads website data only and does not access the running game.
 
+Public portable builds also have a first-run Download map data button. It uses
+the same public marker endpoint and CDN directly, retains Verteron records,
+validates coordinate data and decoded artwork, and caches icons plus provenance
+locally. The ZIP itself omits these assets. A separate Calibrate map button learns
+the English map-title reference from the user's open Verteron map after validating
+terrain alignment. These direct downloads do not establish redistribution rights.
+
 Revision 89ce3984d569ff1a03ee6311d064231211212981 contains 841 World_L_A
 markers, 832 World_D_A markers, and 199 Abyss_Reshanta_A markers. World_L_A
 includes 560 monolithMaterial and 118 hiddenCube records, plus location markers.

@@ -37,7 +37,10 @@ public partial class MainWindow : Window
     private ScreenshotHotkey? screenshotHotkey;
     private bool screenshotTransition;
     private DateTime lastStatus;
-    private sealed record SavedSettings(string[] Enabled, double Size, double Opacity, int Display, bool Navigation = false, int MinimapPreset = 1);
+    private sealed record SavedSettings(string[] Enabled, double Size, double Opacity, int Display, bool Navigation = false, int MinimapPreset = 1, bool AutomaticUpdates = true);
+    private readonly CancellationTokenSource lifetime = new();
+    private AvailableUpdate? availableUpdate;
+    private bool checkingUpdates, setupBusy;
     private sealed record NavigationOptions(bool Enabled, bool Large);
     private NavigationOptions navigationOptions = new(false, true);
 
@@ -51,7 +54,7 @@ public partial class MainWindow : Window
         resourceTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
         resourceTimer.Tick += (_, _) => UpdateResourceUsage();
         resourceTimer.Start();
-        Closed += (_, _) => { resourceTimer.Stop(); ownProcess.Dispose(); screenshotHotkey?.Dispose(); };
+        Closed += (_, _) => { lifetime.Cancel(); resourceTimer.Stop(); ownProcess.Dispose(); screenshotHotkey?.Dispose(); };
         DisplayPicker.ItemsSource = DesktopCapture.Displays(); DisplayPicker.SelectedIndex = 0;
         for (var i = 0; i < DisplayPicker.Items.Count; i++)
             if (DisplayPicker.Items[i] is DisplayArea { X: 0, Y: 0 }) DisplayPicker.SelectedIndex = i;
@@ -61,7 +64,7 @@ public partial class MainWindow : Window
             screenshotHotkey = new ScreenshotHotkey(new WindowInteropHelper(this).Handle, () => ToggleScreenshotMode());
             if (!screenshotHotkey.Registered) ScreenshotModeText.Text = "F8 is in use. Use the screenshot mode button.";
         };
-        Loaded += (_, _) => LoadData();
+        Loaded += async (_, _) => { LoadData(); if (AutomaticUpdateToggle.IsChecked == true) await CheckUpdatesAsync(); };
         Closing += OnClosing;
     }
 
@@ -69,14 +72,26 @@ public partial class MainWindow : Window
     {
         try
         {
-            index = QuestlogData.LoadVerteron(Paths.Markers, TerrainTracker.ReferenceSize);
-            icons = IconCache.Load();
             SavedSettings? saved = null;
             if (File.Exists(Paths.Settings))
             {
                 try { saved = JsonSerializer.Deserialize<SavedSettings>(File.ReadAllText(Paths.Settings)); }
                 catch (JsonException) { StatusText.Text = "Previous settings could not be read; using defaults."; }
             }
+            AutomaticUpdateToggle.IsChecked = saved?.AutomaticUpdates ?? true;
+            UpdateText.Text = $"v{AppUpdates.CurrentVersion} · Updates via GitHub";
+            if (!DataSetup.HasData)
+            {
+                StartButton.IsEnabled = false;
+                SetupPanel.Visibility = Visibility.Visible;
+                SetupButton.Content = "Download map data";
+                SetupText.Text = "First run: download markers, map artwork, and icons directly from Questlog for local use. No account is needed.";
+                StatusText.Text = "Map data has not been downloaded yet.";
+                return;
+            }
+            index = QuestlogData.LoadVerteron(Paths.Markers, TerrainTracker.ReferenceSize);
+            icons = IconCache.Load();
+            groups.Clear();
             foreach (var group in index.Markers.GroupBy(m => m.GroupKey).OrderBy(g => g.First().Type).ThenBy(g => g.First().Name))
             {
                 var first = group.First();
@@ -95,11 +110,104 @@ public partial class MainWindow : Window
             GroupsList.ItemsSource = groups; ready = true; SelectionChanged();
             StatusText.Text = $"{index.Markers.Count:N0} locations · {groups.Count} toggleable categories. Ready.";
             UpdateResourceUsage();
+            StartButton.IsEnabled = File.Exists(Paths.Title);
+            SetupPanel.Visibility = StartButton.IsEnabled ? Visibility.Collapsed : Visibility.Visible;
+            if (!StartButton.IsEnabled)
+            {
+                SetupButton.Content = "Calibrate map (3 seconds)";
+                SetupText.Text = "One-time setup: click Calibrate, then return to Aion 2 and open the Verteron map. A small title reference is saved locally.";
+                StatusText.Text = "Data downloaded. Calibrate the map title once before starting.";
+            }
         }
         catch (Exception error) { StartButton.IsEnabled = false; StatusText.Text = "Data could not be loaded: " + error.Message; }
     }
 
     internal void PrepareForCheck() => LoadData();
+
+    private async void Setup_Click(object sender, RoutedEventArgs e)
+    {
+        if (setupBusy) return;
+        setupBusy = true; SetupButton.IsEnabled = false;
+        try
+        {
+            if (!DataSetup.HasData)
+                await Task.Run(() => DataSetup.DownloadAsync(new Progress<string>(message => Dispatcher.InvokeAsync(() => SetupText.Text = message)), lifetime.Token));
+            else
+            {
+                var display = (DisplayArea)DisplayPicker.SelectedItem;
+                for (var seconds = 3; seconds > 0; seconds--)
+                {
+                    SetupText.Text = $"Return to Aion 2 and open the Verteron map: {seconds}…";
+                    await Task.Delay(1000, lifetime.Token);
+                }
+                await Task.Run(() =>
+                {
+                    if (!OverlayWindow.IsGameForeground()) throw new InvalidOperationException("Aion 2 must be in front during calibration.");
+                    using var capture = new DesktopCapture(display); using var gray = capture.GrabGray();
+                    using var tracker = new TerrainTracker(Paths.Reference, Paths.Title);
+                    if (tracker.Process(gray, false) is null) throw new InvalidOperationException("Verteron terrain was not recognized. Open its full map and try again.");
+                    using var title = new OpenCvSharp.Mat(gray, new OpenCvSharp.Rect(10, 13, 205, 32));
+                    Directory.CreateDirectory(Path.GetDirectoryName(Paths.Title)!);
+                    if (!OpenCvSharp.Cv2.ImWrite(Paths.Title, title)) throw new IOException("Could not save the local map title reference.");
+                }, lifetime.Token);
+            }
+            LoadData();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { SetupText.Text = "Setup failed: " + error.Message + " You can retry."; }
+        finally { setupBusy = false; SetupButton.IsEnabled = true; }
+    }
+
+    private async Task CheckUpdatesAsync()
+    {
+        if (checkingUpdates) return;
+        checkingUpdates = true; UpdateButton.IsEnabled = false;
+        UpdateText.Text = "Checking GitHub Releases…";
+        try
+        {
+            availableUpdate = await AppUpdates.CheckAsync(lifetime.Token);
+            UpdateButton.Content = availableUpdate is null ? "Check for updates" : "Install & restart";
+            UpdateText.Text = availableUpdate is null ? $"v{AppUpdates.CurrentVersion} · No newer stable release" : $"v{availableUpdate.Version} available · Current: {AppUpdates.CurrentVersion}";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { UpdateText.Text = "Update check failed: " + error.Message; }
+        finally { checkingUpdates = false; UpdateButton.IsEnabled = true; }
+    }
+
+    private async void Update_Click(object sender, RoutedEventArgs e)
+    {
+        if (checkingUpdates || setupBusy) return;
+        if (availableUpdate is null) { await CheckUpdatesAsync(); return; }
+        checkingUpdates = true; UpdateButton.IsEnabled = false; SetupButton.IsEnabled = false;
+        try
+        {
+            UpdateText.Text = "Downloading and verifying the update…";
+            var stage = await AppUpdates.PrepareAsync(availableUpdate, lifetime.Token);
+            if (lifetime.IsCancellationRequested) return;
+            SaveSettings();
+            AppUpdates.InstallAndRestart(stage);
+            Close();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { UpdateText.Text = "Update failed: " + error.Message; }
+        finally { checkingUpdates = false; UpdateButton.IsEnabled = true; SetupButton.IsEnabled = true; }
+    }
+
+    private void UpdatePreference_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ready) { saveTimer.Stop(); saveTimer.Start(); }
+        else if (IsInitialized)
+        {
+            try
+            {
+                var settings = File.Exists(Paths.Settings) ? JsonSerializer.Deserialize<SavedSettings>(File.ReadAllText(Paths.Settings)) : null;
+                settings = (settings ?? new SavedSettings(["gatherable|Sapphire Gemstone"], 20, .9, 0)) with { AutomaticUpdates = AutomaticUpdateToggle.IsChecked == true };
+                File.WriteAllText(Paths.Settings + ".tmp", JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
+                File.Move(Paths.Settings + ".tmp", Paths.Settings, true);
+            }
+            catch (Exception error) { UpdateText.Text = "Could not save update preference: " + error.Message; }
+        }
+    }
 
     private void UpdateResourceUsage()
     {
@@ -321,7 +429,7 @@ public partial class MainWindow : Window
         try
         {
             var settings = new SavedSettings(groups.Where(g => g.Enabled).Select(g => g.Key).ToArray(), IconSize.Value, IconOpacity.Value, DisplayPicker.SelectedIndex,
-                NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex);
+                NavigationToggle.IsChecked == true, MinimapPresetPicker.SelectedIndex, AutomaticUpdateToggle.IsChecked == true);
             var temporary = Paths.Settings + ".tmp";
             File.WriteAllText(temporary, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
             File.Move(temporary, Paths.Settings, true);

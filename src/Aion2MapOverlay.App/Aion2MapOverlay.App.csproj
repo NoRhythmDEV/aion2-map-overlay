@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
+    <Content Include="../../scripts/ApplyUpdate.ps1" Link="ApplyUpdate.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <PropertyGroup>
