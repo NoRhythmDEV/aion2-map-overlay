@@ -18,7 +18,6 @@ For the larger minimap layout, open **Larger minimap setup…** in the app. Copy
 - **Nearest resource direction:** An optional ring near your character points toward the nearest selected gatherable relative to your camera. It reads the minimap view cone and hides when the heading is unclear.
 - **Custom appearance:** Adjust icon size and opacity, search categories, and toggle resources with a click.
 - **Saved preferences:** Your filters, display, and appearance settings carry over between sessions.
-- **Screenshots:** Press **F8**, use **Win+Shift+S**, then press **F8** again to resume tracking.
 - **In-app updates:** Check GitHub for new versions and install them without losing your settings or downloaded data.
 - **Capture recovery:** Temporary capture interruptions retry automatically; error details are saved locally in `logs/overlay.log`.
 - **Usage display:** Keep an eye on the app's CPU and RAM use.
@@ -30,6 +29,9 @@ Map data and artwork are downloaded directly from Questlog for local use. Attrib
 ## Configurator
 
 ![Configurator showing resource tiles, appearance controls, optional minimap guidance, and update settings](assets/configurator.png)
+![Showcase Large Map](assets/large-map.png)
+![Showcase Minimap](assets/minimap.png)
+
 
 ## Build it yourself
 
