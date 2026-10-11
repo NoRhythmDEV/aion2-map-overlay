@@ -11,9 +11,9 @@ $package = Join-Path $outputRoot ('build-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $package -Force | Out-Null
 dotnet publish (Join-Path $projectRoot 'src/Aion2MapOverlay.App/Aion2MapOverlay.App.csproj') -c Release -r win-x64 --self-contained true -p:Version=$Version -p:InformationalVersion=$Version -p:ContinuousIntegrationBuild=true -o $package
 if ($LASTEXITCODE -ne 0) { throw 'Portable publish failed.' }
-Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/release-readme.txt') -Destination (Join-Path $package 'README.txt')
-Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/third-party-notices.txt') -Destination (Join-Path $package 'THIRD-PARTY-NOTICES.txt')
-Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/licenses') -Destination $package -Recurse
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging/release-readme.txt') -Destination (Join-Path $package 'README.txt')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging/third-party-notices.txt') -Destination (Join-Path $package 'THIRD-PARTY-NOTICES.txt')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging/licenses') -Destination $package -Recurse
 $files = @(Get-ChildItem -LiteralPath $package -File -Recurse | ForEach-Object {
     $relative = $_.FullName.Substring($package.Length + 1).Replace('\', '/')
     if ($relative -match '^(data|captures|settings\.local|\.git)(/|\.|$)') { throw "Private/local content in release: $relative" }

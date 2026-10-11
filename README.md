@@ -26,7 +26,7 @@ Map data and artwork are downloaded directly from Questlog for local use. Attrib
 
 ## Configurator
 
-![Configurator showing resource tiles, appearance controls, optional minimap guidance, and update settings](docs/images/configurator.png)
+![Configurator showing resource tiles, appearance controls, optional minimap guidance, and update settings](assets/configurator.png)
 
 ## Build it yourself
 
@@ -40,5 +40,3 @@ dotnet build Aion2MapOverlay.sln -c Release
 ```
 
 The portable ZIP is created in `artifacts/release/`. It includes the .NET runtime; map data downloads through the app on first launch.
-
-For development and release details, see [release maintenance](docs/releases.md), [data sources](docs/data-sources.md), and the [implementation plan](docs/implementation-plan.md).
